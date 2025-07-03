@@ -1,114 +1,139 @@
+/**
+ * Refactored SupergraphService to improve readability and reduce duplication.
+ */
+import { Injectable, Logger, OnApplicationBootstrap } from '@nestjs/common';
 import { composeServices } from '@apollo/composition';
 import { ServiceDefinition } from '@apollo/federation-internals';
-import { Injectable, Logger, OnApplicationBootstrap } from '@nestjs/common';
 import { parse } from 'graphql';
 import * as objectHash from 'object-hash';
-import { exhaustMap, from, interval, startWith } from 'rxjs';
+import { interval, startWith, exhaustMap, from } from 'rxjs';
 import { FetchService } from 'src/supergraph/fetch.service';
-import { getSubGraphsFromEnvironment } from 'src/supergraph/utils/get-sub-graphs-from-env';
+import {
+  ProjectConfig,
+  SubGraphEntry,
+  getProjectsFromEnvironment,
+} from 'src/supergraph/utils/get-projects-from-env';
 
-type SuperGraphCache = { serviceDefinition: ServiceDefinition; hash: string };
+interface SuperGraphCacheEntry {
+  serviceDefinition: ServiceDefinition;
+  hash: string;
+}
 
 @Injectable()
 export class SupergraphService implements OnApplicationBootstrap {
-  public supergraph: string | null = null;
-
-  private superGraphCaches: SuperGraphCache[] = [];
-
   private readonly logger = new Logger(SupergraphService.name);
-  private subGraphs: { name: string; url: string }[] = [];
+  private readonly supergraphs = new Map<string, string>();
+  private readonly caches = new Map<string, SuperGraphCacheEntry[]>();
 
   constructor(private readonly fetchService: FetchService) {}
 
   public onApplicationBootstrap() {
-    this.subGraphs = getSubGraphsFromEnvironment();
+    const projects = getProjectsFromEnvironment();
 
-    for (const subGraph of this.subGraphs) {
-      this.logger.log(`Found subgraph: ${subGraph.name} at ${subGraph.url}`);
+    if (!projects.length) {
+      throw new Error(
+        'No projects found. Define SUBGRAPH_<PROJECT>_ env variables.',
+      );
     }
 
-    interval(10_000)
+    projects.forEach((project) => this.startPolling(project));
+  }
+
+  public getSuperGraph(projectId: string): string | undefined {
+    return this.supergraphs.get(projectId);
+  }
+
+  private startPolling(project: ProjectConfig): void {
+    const { project: id, subGraphs, system } = project;
+    this.logger.log(`Project "${id}" polling every ${system.POLL_INTERVAL_S}s`);
+    subGraphs.forEach(({ name, url }) =>
+      this.logger.log(` - Subgraph "${name}" at ${url}`),
+    );
+
+    this.caches.set(id, []);
+    interval(system.POLL_INTERVAL_S * 1000)
       .pipe(
         startWith(0),
-        exhaustMap(() => from(this.updateSubGraph())),
+        exhaustMap(() => from(this.refreshProject(id, subGraphs))),
       )
-      .subscribe(() => {});
+      .subscribe({
+        error: (error: Error) => {
+          this.logger.error(
+            `[${id}] Polling failed: ${error.message}`,
+            error.stack,
+          );
+        },
+      });
   }
 
-  private async updateSubGraph() {
-    if (this.subGraphs.length === 0) {
-      throw new Error(
-        'No subgraphs found in environment variables. Please define SUBGRAPH_* environment variables.',
-      );
+  private async refreshProject(
+    projectId: string,
+    subGraphs: SubGraphEntry[],
+  ): Promise<void> {
+    const newDefs = await this.loadDefinitions(subGraphs);
+    const changed = this.findChanges(projectId, newDefs);
+
+    if (changed.length) {
+      this.logChanges(projectId, changed);
+      this.buildSupergraph(projectId, newDefs);
     }
 
-    const definitions = await this.getDefinitions();
-    const changedDefinitions = this.getChangedDefinitions(definitions);
-
-    for (const definition of changedDefinitions) {
-      this.logger.log(
-        `Changed subgraph definition: ${definition.serviceDefinition.name}, hash=${definition.hash}`,
-      );
-    }
-
-    this.updateCache(definitions);
-
-    if (!changedDefinitions.length) {
-      return;
-    }
-
-    this.logger.log(
-      `Building supergraph from ${this.subGraphs.length} subgraphs`,
-    );
-
-    const result = composeServices(
-      definitions.map((item) => item.serviceDefinition),
-    );
-
-    if (result.errors && result.errors.length > 0) {
-      this.logger.error('Supergraph composition failed:', result.errors);
-      return;
-    }
-
-    if (result.supergraphSdl) {
-      this.logger.log('Supergraph built successfully');
-
-      this.supergraph = result.supergraphSdl;
-    } else {
-      this.logger.error('Failed to generate supergraph SDL');
-    }
+    this.caches.set(projectId, newDefs);
   }
 
-  private getChangedDefinitions(definitions: SuperGraphCache[]) {
-    return definitions.filter((definition) => {
-      const found = this.superGraphCaches.find(
-        (cache) =>
-          cache.serviceDefinition.name === definition.serviceDefinition.name,
-      );
-
-      return !found || found.hash !== definition.hash;
-    });
-  }
-
-  private updateCache(definitions: SuperGraphCache[]) {
-    this.superGraphCaches = definitions;
-  }
-
-  private getDefinitions() {
-    return Promise.all<SuperGraphCache>(
-      this.subGraphs.map(async (subgraph) => {
-        const schemaSDL = await this.fetchService.fetchSchema(subgraph.url);
-        const hash = objectHash(schemaSDL);
-
+  private async loadDefinitions(
+    subGraphs: SubGraphEntry[],
+  ): Promise<SuperGraphCacheEntry[]> {
+    return Promise.all(
+      subGraphs.map(async ({ name, url }) => {
+        const sdl = await this.fetchService.fetchSchema(url);
+        const hash = objectHash(sdl);
         return {
-          serviceDefinition: {
-            name: subgraph.name,
-            url: subgraph.url,
-            typeDefs: parse(schemaSDL),
-          },
+          serviceDefinition: { name, url, typeDefs: parse(sdl) },
           hash,
         };
       }),
     );
+  }
+
+  private findChanges(
+    projectId: string,
+    newDefs: SuperGraphCacheEntry[],
+  ): SuperGraphCacheEntry[] {
+    const oldDefs = this.caches.get(projectId) || [];
+    return newDefs.filter(({ serviceDefinition: { name }, hash }) => {
+      const existing = oldDefs.find((e) => e.serviceDefinition.name === name);
+      return !existing || existing.hash !== hash;
+    });
+  }
+
+  private logChanges(projectId: string, changed: SuperGraphCacheEntry[]): void {
+    changed.forEach(({ serviceDefinition: { name }, hash }) =>
+      this.logger.log(`[${projectId}] "${name}" changed (hash=${hash})`),
+    );
+  }
+
+  private buildSupergraph(
+    projectId: string,
+    definitions: SuperGraphCacheEntry[],
+  ): void {
+    this.logger.log(
+      `[${projectId}] Composing supergraph from ${definitions.length} services`,
+    );
+
+    const result = composeServices(definitions.map((d) => d.serviceDefinition));
+
+    if (result.errors?.length) {
+      this.logger.error(`[${projectId}] Composition failed`, result.errors);
+      return;
+    }
+
+    if (!result.supergraphSdl) {
+      this.logger.error(`[${projectId}] No supergraph SDL generated`);
+      return;
+    }
+
+    this.supergraphs.set(projectId, result.supergraphSdl);
+    this.logger.log(`[${projectId}] Supergraph updated successfully`);
   }
 }

@@ -1,6 +1,7 @@
 import { HttpModule } from '@nestjs/axios';
 import { Module } from '@nestjs/common';
 import { FetchService } from 'src/supergraph/fetch.service';
+import { SupergraphController } from 'src/supergraph/supergraph.controller';
 import { SupergraphService } from 'src/supergraph/supergraph.service';
 
 @Module({
@@ -10,6 +11,7 @@ import { SupergraphService } from 'src/supergraph/supergraph.service';
       maxRedirects: 5,
     }),
   ],
+  controllers: [SupergraphController],
   providers: [SupergraphService, FetchService],
   exports: [SupergraphService],
 })
