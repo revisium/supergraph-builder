@@ -5,7 +5,7 @@ import {
   NotFoundException,
   Param,
 } from '@nestjs/common';
-import { SupergraphService } from './supergraph/supergraph.service';
+import { SupergraphService } from './supergraph.service';
 
 /**
  * Controller to expose composed supergraph SDLs per project.
