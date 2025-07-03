@@ -1,24 +1,27 @@
-import { Controller, Get, Header, NotFoundException } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Header,
+  NotFoundException,
+  Param,
+} from '@nestjs/common';
 import { AppService } from './app.service';
 import { SupergraphService } from './supergraph/supergraph.service';
 
-@Controller()
+@Controller('supergraph')
 export class AppController {
   constructor(
     private readonly appService: AppService,
     private readonly supergraphService: SupergraphService,
   ) {}
 
-  @Get()
-  getHello(): string {
-    return this.appService.getHello();
-  }
-
-  @Get('supergraph')
+  @Get(':projectId')
   @Header('Content-Type', 'text/plain')
-  public getSupergraph() {
-    if (this.supergraphService.supergraph) {
-      return this.supergraphService.supergraph;
+  public getSupergraph(@Param('projectId') projectId: string) {
+    const superGraph = this.supergraphService.getSuperGraph(projectId);
+
+    if (superGraph) {
+      return superGraph;
     } else {
       throw new NotFoundException('Supergraph is not available');
     }

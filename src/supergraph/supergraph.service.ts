@@ -15,7 +15,7 @@ type SuperGraphCache = { serviceDefinition: ServiceDefinition; hash: string };
 
 @Injectable()
 export class SupergraphService implements OnApplicationBootstrap {
-  public supergraph: string | null = null;
+  private supergraphs = new Map<string, string>();
 
   private superGraphCaches = new Map<string, SuperGraphCache[]>();
 
@@ -36,6 +36,10 @@ export class SupergraphService implements OnApplicationBootstrap {
     for (const project of this.projects) {
       this.runProject(project);
     }
+  }
+
+  public getSuperGraph(projectId: string) {
+    return this.supergraphs.get(projectId);
   }
 
   private runProject(project: ProjectConfig) {
@@ -95,7 +99,7 @@ export class SupergraphService implements OnApplicationBootstrap {
     if (result.supergraphSdl) {
       this.logger.log(`[${project.project}] supergraph built successfully`);
 
-      this.supergraph = result.supergraphSdl;
+      this.supergraphs.set(project.project, result.supergraphSdl);
     } else {
       this.logger.error(
         `[${project.project}] failed to generate supergraph SDL`,
