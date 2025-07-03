@@ -67,6 +67,7 @@ export class SupergraphService implements OnApplicationBootstrap {
 
     if (result.errors && result.errors.length > 0) {
       this.logger.error('Supergraph composition failed:', result.errors);
+      return;
     }
 
     if (result.supergraphSdl) {

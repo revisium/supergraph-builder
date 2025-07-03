@@ -12,9 +12,9 @@ const sdlQuery = `
 `;
 
 type ReturnType = {
-  data: {
-    _service: {
-      sdl: string;
+  data?: {
+    _service?: {
+      sdl?: string;
     };
   };
 };
@@ -37,12 +37,21 @@ export class FetchService {
         )
         .pipe(
           catchError((error: AxiosError) => {
-            this.logger.error(error.response?.data);
+            this.logger.error(
+              `Failed to fetch schema from ${url}: ${error.message}`,
+              error.response?.data,
+            );
 
-            throw error;
+            throw new Error(
+              `Failed to fetch schema from ${url}: ${error.message}`,
+            );
           }),
         ),
     );
+
+    if (!data?.data?._service?.sdl) {
+      throw new Error(`Invalid response structure from ${url}: SDL not found`);
+    }
 
     return data.data._service.sdl;
   }
