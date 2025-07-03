@@ -22,8 +22,8 @@ interface SuperGraphCacheEntry {
 @Injectable()
 export class SupergraphService implements OnApplicationBootstrap {
   private readonly logger = new Logger(SupergraphService.name);
-  private supergraphs = new Map<string, string>();
-  private caches = new Map<string, SuperGraphCacheEntry[]>();
+  private readonly supergraphs = new Map<string, string>();
+  private readonly caches = new Map<string, SuperGraphCacheEntry[]>();
 
   constructor(private readonly fetchService: FetchService) {}
 
@@ -56,7 +56,14 @@ export class SupergraphService implements OnApplicationBootstrap {
         startWith(0),
         exhaustMap(() => from(this.refreshProject(id, subGraphs))),
       )
-      .subscribe();
+      .subscribe({
+        error: (error: Error) => {
+          this.logger.error(
+            `[${id}] Polling failed: ${error.message}`,
+            error.stack,
+          );
+        },
+      });
   }
 
   private async refreshProject(
