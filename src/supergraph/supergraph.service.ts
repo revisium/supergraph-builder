@@ -5,6 +5,7 @@ import { parse } from 'graphql';
 import * as objectHash from 'object-hash';
 import { interval, startWith, exhaustMap, from } from 'rxjs';
 import { FetchService } from 'src/supergraph/fetch.service';
+import { HiveCliService } from 'src/supergraph/hive.service';
 import { SchemaStorageService } from 'src/supergraph/schema-storage.service';
 import {
   ProjectConfig,
@@ -27,6 +28,7 @@ export class SupergraphService implements OnApplicationBootstrap {
   constructor(
     private readonly fetchService: FetchService,
     private readonly schemaStorage: SchemaStorageService,
+    private readonly hiveCliService: HiveCliService,
   ) {}
 
   public onApplicationBootstrap() {
@@ -56,7 +58,7 @@ export class SupergraphService implements OnApplicationBootstrap {
     interval(system.POLL_INTERVAL_S * 1000)
       .pipe(
         startWith(0),
-        exhaustMap(() => from(this.refreshProject(id, subGraphs))),
+        exhaustMap(() => from(this.refreshProject(project))),
       )
       .subscribe({
         error: (error: Error) => {
@@ -68,16 +70,16 @@ export class SupergraphService implements OnApplicationBootstrap {
       });
   }
 
-  private async refreshProject(
-    projectId: string,
-    subGraphs: SubGraphEntry[],
-  ): Promise<void> {
+  private async refreshProject(project: ProjectConfig): Promise<void> {
+    const { project: projectId, subGraphs } = project;
+
     const newDefs = await this.loadDefinitions(subGraphs);
     const changed = this.findChanges(projectId, newDefs);
 
     if (changed.length) {
       this.logChanges(projectId, changed);
       await this.saveChanges(projectId, changed);
+      await this.publishSchema(project, changed);
       this.buildSupergraph(projectId, newDefs);
     }
 
@@ -126,6 +128,26 @@ export class SupergraphService implements OnApplicationBootstrap {
       sdl,
     } of changed) {
       await this.schemaStorage.saveSchema(projectId, name, sdl);
+    }
+  }
+
+  private async publishSchema(
+    project: ProjectConfig,
+    changed: SuperGraphCacheEntry[],
+  ) {
+    if (project.system.HIVE_TARGET && project.system.HIVE_ACCESS_TOKEN) {
+      for (const {
+        serviceDefinition: { name, url },
+      } of changed) {
+        const schemaPath = `schemas/${project.project}/${name}`;
+        await this.hiveCliService.publishSchemaFile(
+          project.system.HIVE_TARGET,
+          name,
+          url!,
+          schemaPath,
+          project.system.HIVE_ACCESS_TOKEN,
+        );
+      }
     }
   }
 
