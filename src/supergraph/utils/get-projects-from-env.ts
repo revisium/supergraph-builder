@@ -54,7 +54,6 @@ export function getProjectsFromEnvironment(): ProjectConfig[] {
 
     if (settingKey === 'POLL_INTERVAL_S') {
       cfg.system.POLL_INTERVAL_S = parseValueToNumber(envVal);
-      cfg.system.POLL_INTERVAL_S = parseValueToNumber(envVal);
     } else if (
       settingKey === 'HIVE_TARGET' ||
       settingKey === 'HIVE_ACCESS_TOKEN'

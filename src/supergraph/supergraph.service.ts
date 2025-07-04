@@ -139,11 +139,18 @@ export class SupergraphService implements OnApplicationBootstrap {
       for (const {
         serviceDefinition: { name, url },
       } of changed) {
+        if (!url) {
+          this.logger.warn(
+            `[${project.project}] Skipping schema publish for "${name}" - no URL provided`,
+          );
+          continue;
+        }
+
         const schemaPath = `schemas/${project.project}/${name}`;
         await this.hiveCliService.publishSchemaFile(
           project.system.HIVE_TARGET,
           name,
-          url!,
+          url,
           schemaPath,
           project.system.HIVE_ACCESS_TOKEN,
         );

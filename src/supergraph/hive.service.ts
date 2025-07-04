@@ -27,7 +27,7 @@ export class HiveCliService {
       `"${schemaPath}"`,
     ].join(' ');
 
-    this.logger.log(`Executing Hive CLI: ${cmd}`);
+    this.logger.log(`Executing Hive CLI: target=${target}`);
     try {
       const { stdout, stderr } = await exec(cmd, {
         cwd: process.cwd(),
