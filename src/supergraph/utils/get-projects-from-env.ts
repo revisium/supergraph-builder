@@ -8,6 +8,8 @@ export type ProjectConfig = {
   subGraphs: SubGraphEntry[];
   system: {
     POLL_INTERVAL_S: number;
+    HIVE_TARGET: string;
+    HIVE_ACCESS_TOKEN: string;
   };
 };
 
@@ -42,6 +44,8 @@ export function getProjectsFromEnvironment(): ProjectConfig[] {
           POLL_INTERVAL_S: parseValueToNumber(
             RESERVED_KEYS_DEFAULT_VALUES.POLL_INTERVAL_S,
           ),
+          HIVE_TARGET: '',
+          HIVE_ACCESS_TOKEN: '',
         },
       };
     }
@@ -50,6 +54,11 @@ export function getProjectsFromEnvironment(): ProjectConfig[] {
 
     if (settingKey === 'POLL_INTERVAL_S') {
       cfg.system.POLL_INTERVAL_S = parseValueToNumber(envVal);
+    } else if (
+      settingKey === 'HIVE_TARGET' ||
+      settingKey === 'HIVE_ACCESS_TOKEN'
+    ) {
+      cfg.system[settingKey] = envVal;
     } else {
       const name = settingKey.toLowerCase();
       cfg.subGraphs.push({ name, url: envVal });
