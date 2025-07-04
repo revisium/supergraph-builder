@@ -1,6 +1,3 @@
-/**
- * Refactored SupergraphService to improve readability and reduce duplication.
- */
 import { Injectable, Logger, OnApplicationBootstrap } from '@nestjs/common';
 import { composeServices } from '@apollo/composition';
 import { ServiceDefinition } from '@apollo/federation-internals';
@@ -8,6 +5,7 @@ import { parse } from 'graphql';
 import * as objectHash from 'object-hash';
 import { interval, startWith, exhaustMap, from } from 'rxjs';
 import { FetchService } from 'src/supergraph/fetch.service';
+import { SchemaStorageService } from 'src/supergraph/schema-storage.service';
 import {
   ProjectConfig,
   SubGraphEntry,
@@ -17,6 +15,7 @@ import {
 interface SuperGraphCacheEntry {
   serviceDefinition: ServiceDefinition;
   hash: string;
+  sdl: string;
 }
 
 @Injectable()
@@ -25,7 +24,10 @@ export class SupergraphService implements OnApplicationBootstrap {
   private readonly supergraphs = new Map<string, string>();
   private readonly caches = new Map<string, SuperGraphCacheEntry[]>();
 
-  constructor(private readonly fetchService: FetchService) {}
+  constructor(
+    private readonly fetchService: FetchService,
+    private readonly schemaStorage: SchemaStorageService,
+  ) {}
 
   public onApplicationBootstrap() {
     const projects = getProjectsFromEnvironment();
@@ -75,6 +77,7 @@ export class SupergraphService implements OnApplicationBootstrap {
 
     if (changed.length) {
       this.logChanges(projectId, changed);
+      await this.saveChanges(projectId, changed);
       this.buildSupergraph(projectId, newDefs);
     }
 
@@ -91,6 +94,7 @@ export class SupergraphService implements OnApplicationBootstrap {
         return {
           serviceDefinition: { name, url, typeDefs: parse(sdl) },
           hash,
+          sdl,
         };
       }),
     );
@@ -111,6 +115,18 @@ export class SupergraphService implements OnApplicationBootstrap {
     changed.forEach(({ serviceDefinition: { name }, hash }) =>
       this.logger.log(`[${projectId}] "${name}" changed (hash=${hash})`),
     );
+  }
+
+  private async saveChanges(
+    projectId: string,
+    changed: SuperGraphCacheEntry[],
+  ) {
+    for (const {
+      serviceDefinition: { name },
+      sdl,
+    } of changed) {
+      await this.schemaStorage.saveSchema(projectId, name, sdl);
+    }
   }
 
   private buildSupergraph(

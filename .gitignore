@@ -40,3 +40,6 @@ lerna-debug.log*
 # db
 initial-backup.sql
 initial-backup.dump
+
+# schemas
+/schemas
