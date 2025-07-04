@@ -16,6 +16,8 @@ export class HiveCliService {
     url: string,
     schemaPath: string,
     token: string,
+    author: string,
+    commit: string,
   ): Promise<void> {
     const cmd = [
       'hive',
@@ -24,6 +26,8 @@ export class HiveCliService {
       `--target "${target}"`,
       `--service "${service}"`,
       `--url "${url}"`,
+      `--author "${author}"`,
+      `--commit "${commit}"`,
       `"${schemaPath}"`,
     ].join(' ');
 

@@ -135,9 +135,14 @@ export class SupergraphService implements OnApplicationBootstrap {
     project: ProjectConfig,
     changed: SuperGraphCacheEntry[],
   ) {
-    if (project.system.HIVE_TARGET && project.system.HIVE_ACCESS_TOKEN) {
+    if (
+      project.system.HIVE_TARGET &&
+      project.system.HIVE_ACCESS_TOKEN &&
+      project.system.HIVE_AUTHOR
+    ) {
       for (const {
         serviceDefinition: { name, url },
+        hash,
       } of changed) {
         if (!url) {
           this.logger.warn(
@@ -153,6 +158,8 @@ export class SupergraphService implements OnApplicationBootstrap {
           url,
           schemaPath,
           project.system.HIVE_ACCESS_TOKEN,
+          project.system.HIVE_AUTHOR,
+          hash,
         );
       }
     }
