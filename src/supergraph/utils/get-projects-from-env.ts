@@ -10,6 +10,7 @@ export type ProjectConfig = {
     POLL_INTERVAL_S: number;
     HIVE_TARGET: string;
     HIVE_ACCESS_TOKEN: string;
+    HIVE_AUTHOR: string;
   };
 };
 
@@ -46,6 +47,7 @@ export function getProjectsFromEnvironment(): ProjectConfig[] {
           ),
           HIVE_TARGET: '',
           HIVE_ACCESS_TOKEN: '',
+          HIVE_AUTHOR: '',
         },
       };
     }
@@ -56,7 +58,8 @@ export function getProjectsFromEnvironment(): ProjectConfig[] {
       cfg.system.POLL_INTERVAL_S = parseValueToNumber(envVal);
     } else if (
       settingKey === 'HIVE_TARGET' ||
-      settingKey === 'HIVE_ACCESS_TOKEN'
+      settingKey === 'HIVE_ACCESS_TOKEN' ||
+      settingKey === 'HIVE_AUTHOR'
     ) {
       cfg.system[settingKey] = envVal;
     } else {
