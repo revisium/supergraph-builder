@@ -11,13 +11,15 @@ export type ProjectConfig = {
     HIVE_TARGET: string;
     HIVE_ACCESS_TOKEN: string;
     HIVE_AUTHOR: string;
+    MAX_RUNTIME_ERRORS: number;
   };
 };
 
-type RESERVED_KEYS = 'POLL_INTERVAL_S';
+type RESERVED_KEYS = 'POLL_INTERVAL_S' | 'MAX_RUNTIME_ERRORS';
 
 const RESERVED_KEYS_DEFAULT_VALUES: Record<RESERVED_KEYS[number], string> = {
   POLL_INTERVAL_S: '60',
+  MAX_RUNTIME_ERRORS: '5',
 };
 
 function parseValueToNumber(raw: string): number {
@@ -48,6 +50,9 @@ export function getProjectsFromEnvironment(): ProjectConfig[] {
           HIVE_TARGET: '',
           HIVE_ACCESS_TOKEN: '',
           HIVE_AUTHOR: '',
+          MAX_RUNTIME_ERRORS: parseValueToNumber(
+            RESERVED_KEYS_DEFAULT_VALUES.MAX_RUNTIME_ERRORS,
+          ),
         },
       };
     }
@@ -56,6 +61,8 @@ export function getProjectsFromEnvironment(): ProjectConfig[] {
 
     if (settingKey === 'POLL_INTERVAL_S') {
       cfg.system.POLL_INTERVAL_S = parseValueToNumber(envVal);
+    } else if (settingKey === 'MAX_RUNTIME_ERRORS') {
+      cfg.system.MAX_RUNTIME_ERRORS = parseValueToNumber(envVal);
     } else if (
       settingKey === 'HIVE_TARGET' ||
       settingKey === 'HIVE_ACCESS_TOKEN' ||
@@ -69,27 +76,4 @@ export function getProjectsFromEnvironment(): ProjectConfig[] {
   });
 
   return Object.values(projectsMap);
-}
-
-export function getSubGraphsFromEnvironmentOld(): Array<{
-  name: string;
-  url: string;
-}> {
-  const subGraphs: Array<{ name: string; url: string }> = [];
-
-  Object.keys(process.env).forEach((key) => {
-    if (key.startsWith('SUBGRAPH_')) {
-      const subgraphName = key.replace('SUBGRAPH_', '').toLowerCase();
-      const subgraphUrl = process.env[key];
-
-      if (subgraphUrl) {
-        subGraphs.push({
-          name: subgraphName,
-          url: subgraphUrl,
-        });
-      }
-    }
-  });
-
-  return subGraphs;
 }

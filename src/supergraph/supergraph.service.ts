@@ -31,13 +31,25 @@ export class SupergraphService implements OnApplicationBootstrap {
     private readonly hiveCliService: HiveCliService,
   ) {}
 
-  public onApplicationBootstrap() {
+  public async onApplicationBootstrap() {
     const projects = getProjectsFromEnvironment();
 
     if (!projects.length) {
       throw new Error(
         'No projects found. Define SUBGRAPH_<PROJECT>_ env variables.',
       );
+    }
+
+    for (const project of projects) {
+      try {
+        await this.performInitialFetch(project);
+      } catch (error) {
+        this.logger.error(
+          `Bootstrap failed for project "${project.project}": ${(error as Error).message}`,
+        );
+
+        process.exit(1);
+      }
     }
 
     projects.forEach((project) => this.startPolling(project));
@@ -62,18 +74,21 @@ export class SupergraphService implements OnApplicationBootstrap {
       )
       .subscribe({
         error: (error: Error) => {
-          this.logger.error(
-            `[${id}] Polling failed: ${error.message}`,
-            error.stack,
+          this.logger.fatal(
+            `[${id}] Fatal polling error: ${error.message}. Shutting down application.`,
           );
+          process.exit(1);
         },
       });
   }
 
   private async refreshProject(project: ProjectConfig): Promise<void> {
-    const { project: projectId, subGraphs } = project;
+    const { project: projectId, subGraphs, system } = project;
 
-    const newDefs = await this.loadDefinitions(subGraphs);
+    const newDefs = await this.loadDefinitions(
+      subGraphs,
+      system.MAX_RUNTIME_ERRORS,
+    );
     const changed = this.findChanges(projectId, newDefs);
 
     if (changed.length) {
@@ -88,10 +103,11 @@ export class SupergraphService implements OnApplicationBootstrap {
 
   private async loadDefinitions(
     subGraphs: SubGraphEntry[],
+    maxRetries: number,
   ): Promise<SuperGraphCacheEntry[]> {
     return Promise.all(
       subGraphs.map(async ({ name, url }) => {
-        const sdl = await this.fetchService.fetchSchema(url);
+        const sdl = await this.fetchService.fetchSchema(url, maxRetries);
         const hash = objectHash(sdl);
         return {
           serviceDefinition: { name, url, typeDefs: parse(sdl) },
@@ -187,5 +203,22 @@ export class SupergraphService implements OnApplicationBootstrap {
 
     this.supergraphs.set(projectId, result.supergraphSdl);
     this.logger.log(`[${projectId}] Supergraph updated successfully`);
+  }
+
+  private async performInitialFetch(project: ProjectConfig): Promise<void> {
+    const { project: projectId, subGraphs, system } = project;
+
+    this.logger.log(`[${projectId}] Performing initial bootstrap fetch`);
+    const newDefs = await this.loadDefinitions(
+      subGraphs,
+      system.MAX_RUNTIME_ERRORS,
+    );
+
+    await this.saveChanges(projectId, newDefs);
+    await this.publishSchema(project, newDefs);
+    this.buildSupergraph(projectId, newDefs);
+    this.caches.set(projectId, newDefs);
+
+    this.logger.log(`[${projectId}] Bootstrap completed successfully`);
   }
 }
