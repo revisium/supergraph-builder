@@ -2,19 +2,19 @@
 
 ```mermaid
 graph TD
-    A["Users Service<br/>GraphQL Schema"] 
+    A["Users Service<br/>GraphQL Schema"]
     B["Products Service<br/>GraphQL Schema"]
     C["Orders Service<br/>GraphQL Schema"]
-    
+
     A --> D["Supergraph Builder<br/>Schema Composition"]
     B --> D
     C --> D
-    
+
     D --> G["GraphQL Gateway<br/>Apollo Router / Hive Gateway"]
-    
-    F["GraphQL Hive<br/>Schema Registry"] 
+
+    F["GraphQL Hive<br/>Schema Registry"]
     D -.-> F
-    
+
     style A fill:#f8fafc,stroke:#64748b,stroke-width:2px,color:#334155
     style B fill:#f8fafc,stroke:#64748b,stroke-width:2px,color:#334155
     style C fill:#f8fafc,stroke:#64748b,stroke-width:2px,color:#334155
@@ -23,7 +23,8 @@ graph TD
     style F fill:#f8fafc,stroke:#64748b,stroke-width:2px,color:#334155
 ```
 
-[![License](https://img.shields.io/github/license/revisium/supergraph-builder)](LICENSE)
+[![GitHub Release](https://img.shields.io/github/v/release/revisium/supergraph-builder)](https://github.com/revisium/supergraph-builder/releases/latest)
+[![GitHub License](https://img.shields.io/badge/License-MIT-green.svg)](https://github.com/revisium/supergraph-builder/blob/master/LICENSE)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.7-blue.svg)](https://www.typescriptlang.org/)
 [![NestJS](https://img.shields.io/badge/NestJS-11.0-green.svg)](https://nestjs.com/)
 
@@ -35,7 +36,7 @@ graph TD
 
 ## Overview
 
-A simple service that keeps your Apollo Federation supergraph updated by continuously fetching subgraph schemas and composing them. The generated supergraph schema is designed to be consumed by GraphQL gateways like Apollo Router, Hive Gateway, or Apollo Federation Gateway. Optionally publishes schema changes to a registry (GraphQL Hive). Built with NestJS and TypeScript.
+A simple service that keeps your Apollo Federation supergraph updated by continuously fetching subgraph schemas and composing them. The generated supergraph schema is designed to be consumed by GraphQL gateways like Apollo Router or Hive Gateway. Optionally publishes schema changes to a registry (GraphQL Hive). Built with NestJS and TypeScript.
 
 ### Features
 
@@ -72,7 +73,7 @@ docker run -d \
   -p 8080:8080 \
   -e SUBGRAPH_MYPROJECT_USERS=http://users-service:4001/graphql \
   -e SUBGRAPH_MYPROJECT_PRODUCTS=http://products-service:4002/graphql \
-  revisium/supergraph-builder:v0.2.0
+  revisium/supergraph-builder:v0.2.1
 ```
 
 2. **Get your supergraph**:
@@ -87,7 +88,7 @@ curl http://localhost:8080/supergraph/myproject
 version: '3.8'
 services:
   supergraph-builder:
-    image: revisium/supergraph-builder:v0.2.0
+    image: revisium/supergraph-builder:v0.2.1
     ports:
       - '8080:8080'
     environment:
@@ -111,7 +112,7 @@ Create a `values.yaml` file:
 # values.yaml
 image:
   repository: revisium/supergraph-builder
-  tag: v0.2.0
+  tag: v0.2.1
   pullPolicy: IfNotPresent
 
 service:
@@ -228,7 +229,7 @@ spec:
     spec:
       containers:
         - name: supergraph-builder
-          image: revisium/supergraph-builder:v0.2.0
+          image: revisium/supergraph-builder:v0.2.1
           ports:
             - containerPort: 8080
           env:
@@ -270,7 +271,7 @@ kubectl apply -f supergraph-builder.yaml
 ### Environment Variables
 
 | Variable                                | Default | Description                              |
-| --------------------------------------- |---------| ---------------------------------------- |
+| --------------------------------------- | ------- | ---------------------------------------- |
 | `SUBGRAPH_<PROJECT>_<SERVICE>`          | -       | Subgraph GraphQL endpoint URL (required) |
 | `SUBGRAPH_<PROJECT>_POLL_INTERVAL_S`    | `60`    | Schema polling interval in seconds       |
 | `SUBGRAPH_<PROJECT>_MAX_RUNTIME_ERRORS` | `5`     | Maximum retry attempts                   |
@@ -311,15 +312,19 @@ export SUBGRAPH_ANALYTICS_METRICS=http://localhost:4004/graphql
 ### Health Check
 
 #### Readiness Probe
+
 ```http
 GET /health/readiness
 ```
+
 Returns 200 OK when service is ready to accept traffic.
 
 #### Liveness Probe
+
 ```http
 GET /health/liveness
 ```
+
 Returns 200 OK when service is alive and functioning.
 
 ### Get Supergraph
