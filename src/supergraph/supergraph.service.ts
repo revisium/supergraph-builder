@@ -3,7 +3,7 @@ import { composeServices } from '@apollo/composition';
 import { ServiceDefinition } from '@apollo/federation-internals';
 import { parse } from 'graphql';
 import * as objectHash from 'object-hash';
-import { interval, startWith, exhaustMap, from } from 'rxjs';
+import { interval, exhaustMap, from } from 'rxjs';
 import { FetchService } from 'src/supergraph/fetch.service';
 import { HiveCliService } from 'src/supergraph/hive.service';
 import { SchemaStorageService } from 'src/supergraph/schema-storage.service';
@@ -70,12 +70,8 @@ export class SupergraphService implements OnApplicationBootstrap {
       this.logger.log(` - Subgraph "${name}" at ${url}`),
     );
 
-    this.caches.set(id, []);
     interval(system.POLL_INTERVAL_S * 1000)
-      .pipe(
-        startWith(0),
-        exhaustMap(() => from(this.refreshProject(project))),
-      )
+      .pipe(exhaustMap(() => from(this.refreshProject(project))))
       .subscribe({
         error: (error: Error) => {
           this.logger.error(
