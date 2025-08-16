@@ -72,7 +72,7 @@ docker run -d \
   -p 8080:8080 \
   -e SUBGRAPH_MYPROJECT_USERS=http://users-service:4001/graphql \
   -e SUBGRAPH_MYPROJECT_PRODUCTS=http://products-service:4002/graphql \
-  revisium/supergraph-builder:v0.2.0
+  revisium/supergraph-builder:v0.2.1
 ```
 
 2. **Get your supergraph**:
@@ -87,7 +87,7 @@ curl http://localhost:8080/supergraph/myproject
 version: '3.8'
 services:
   supergraph-builder:
-    image: revisium/supergraph-builder:v0.2.0
+    image: revisium/supergraph-builder:v0.2.1
     ports:
       - '8080:8080'
     environment:
@@ -111,7 +111,7 @@ Create a `values.yaml` file:
 # values.yaml
 image:
   repository: revisium/supergraph-builder
-  tag: v0.2.0
+  tag: v0.2.1
   pullPolicy: IfNotPresent
 
 service:
@@ -228,7 +228,7 @@ spec:
     spec:
       containers:
         - name: supergraph-builder
-          image: revisium/supergraph-builder:v0.2.0
+          image: revisium/supergraph-builder:v0.2.1
           ports:
             - containerPort: 8080
           env:

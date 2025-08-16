@@ -272,6 +272,41 @@ describe('SupergraphService', () => {
 
       intervalSpy.mockRestore();
     });
+
+    it('should not duplicate schema processing during bootstrap', async () => {
+      (getProjectsFromEnvironment as jest.Mock).mockReturnValue([
+        mockProjectConfig,
+      ]);
+
+      // Bootstrap succeeds (2 calls for 2 subgraphs)
+      fetchService.fetchSchema
+        .mockResolvedValueOnce(mockSdl)
+        .mockResolvedValueOnce(mockSdl);
+
+      storageService.saveSchema.mockResolvedValue(void 0 as any);
+      hiveService.publishSchemaFile.mockResolvedValue(undefined);
+
+      // Mock interval to prevent actual polling during test
+      const intervalSpy = jest.spyOn(rxjs, 'interval');
+      intervalSpy.mockReturnValue({
+        pipe: jest.fn().mockReturnValue({
+          subscribe: jest.fn(),
+        }),
+      } as any);
+
+      await service.onApplicationBootstrap();
+
+      // Verify fetchSchema is called exactly twice (once per subgraph) during bootstrap
+      expect(fetchService.fetchSchema).toHaveBeenCalledTimes(2);
+
+      // Verify saveSchema is called exactly twice (once per subgraph) during bootstrap
+      expect(storageService.saveSchema).toHaveBeenCalledTimes(2);
+
+      // Verify composition happens exactly once
+      expect(composeServices).toHaveBeenCalledTimes(1);
+
+      intervalSpy.mockRestore();
+    });
   });
 
   describe('schema composition', () => {
