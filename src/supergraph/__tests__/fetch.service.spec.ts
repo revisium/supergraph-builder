@@ -68,6 +68,42 @@ describe('FetchService', () => {
       expect(httpService.post).toHaveBeenCalledTimes(3);
     });
 
+    it('should log successful recovery after retries', async () => {
+      const mockResponse: AxiosResponse = {
+        data: {
+          data: {
+            _service: {
+              sdl: mockSdl,
+            },
+          },
+        },
+        status: 200,
+        statusText: 'OK',
+        headers: {},
+        config: {} as never,
+      };
+
+      // First call fails, second succeeds
+      httpService.post
+        .mockReturnValueOnce(throwError(() => new Error('Network error')))
+        .mockReturnValue(of(mockResponse));
+
+      // Mock setTimeout to avoid actual delays in tests
+      jest.spyOn(global, 'setTimeout').mockImplementation((cb: () => void) => {
+        cb();
+        return {} as NodeJS.Timeout;
+      });
+
+      const logSpy = jest.spyOn(service['logger'], 'log');
+
+      const result = await service.fetchSchema(mockUrl, 2);
+
+      expect(result).toBe(mockSdl);
+      expect(logSpy).toHaveBeenCalledWith(
+        'Successfully fetched schema from https://example.com/graphql after 2 attempts',
+      );
+    });
+
     it('should fail after exceeding max retries', async () => {
       httpService.post.mockReturnValue(
         throwError(() => new Error('Persistent network error')),
@@ -206,12 +242,12 @@ describe('FetchService', () => {
 
       // Check that setTimeout was called with exponential backoff delays (with jitter)
       expect(setTimeoutSpy).toHaveBeenCalledTimes(2);
-      
+
       // First retry should be around 1000ms ±25% jitter (750-1250ms range)
       const firstDelay = setTimeoutSpy.mock.calls[0][1] as number;
       expect(firstDelay).toBeGreaterThanOrEqual(750);
       expect(firstDelay).toBeLessThanOrEqual(1250);
-      
+
       // Second retry should be around 2000ms ±25% jitter (1500-2500ms range)
       const secondDelay = setTimeoutSpy.mock.calls[1][1] as number;
       expect(secondDelay).toBeGreaterThanOrEqual(1500);

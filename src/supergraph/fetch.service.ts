@@ -54,6 +54,12 @@ export class FetchService {
           );
         }
 
+        if (attempt > 0) {
+          this.logger.log(
+            `Successfully fetched schema from ${url} after ${attempt + 1} attempts`,
+          );
+        }
+
         return data.data._service.sdl;
       } catch (error) {
         lastError = error as Error;
