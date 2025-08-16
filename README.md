@@ -23,7 +23,8 @@ graph TD
     style F fill:#f8fafc,stroke:#64748b,stroke-width:2px,color:#334155
 ```
 
-![GitHub License](https://img.shields.io/github/license/revisium/supergraph-builder)
+![GitHub Release](https://img.shields.io/github/v/release/revisium/supergraph-builder)
+![GitHub License](https://img.shields.io/badge/License-MIT-green.svg)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.7-blue.svg)](https://www.typescriptlang.org/)
 [![NestJS](https://img.shields.io/badge/NestJS-11.0-green.svg)](https://nestjs.com/)
 
