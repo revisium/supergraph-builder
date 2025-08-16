@@ -12,7 +12,7 @@ export class SupergraphHealthIndicator {
   public isHealthy() {
     const indicator = this.healthIndicatorService.check('supergraph');
     if (!this.supergraph.isThereAnySupergraph()) {
-      return indicator.down();
+      return indicator.down('No supergraph available');
     }
 
     return indicator.up();
