@@ -10,9 +10,7 @@ graph TD
     B --> D
     C --> D
     
-    D --> E["Unified Supergraph<br/>Schema Definition"]
-    
-    E --> G["GraphQL Gateway<br/>Apollo Router / Hive Gateway"]
+    D --> G["GraphQL Gateway<br/>Apollo Router / Hive Gateway"]
     
     F["GraphQL Hive<br/>Schema Registry"] 
     D -.-> F
@@ -21,9 +19,8 @@ graph TD
     style B fill:#f8fafc,stroke:#64748b,stroke-width:2px,color:#334155
     style C fill:#f8fafc,stroke:#64748b,stroke-width:2px,color:#334155
     style D fill:#1e293b,stroke:#0f172a,stroke-width:3px,color:#f1f5f9
-    style E fill:#0f766e,stroke:#0d9488,stroke-width:2px,color:#f0fdfa
-    style G fill:#dc2626,stroke:#b91c1c,stroke-width:2px,color:#fef2f2
-    style F fill:#581c87,stroke:#7c3aed,stroke-width:2px,color:#faf5ff
+    style G fill:#f8fafc,stroke:#64748b,stroke-width:2px,color:#334155
+    style F fill:#f8fafc,stroke:#64748b,stroke-width:2px,color:#334155
 ```
 
 [![License](https://img.shields.io/github/license/revisium/supergraph-builder)](LICENSE)
