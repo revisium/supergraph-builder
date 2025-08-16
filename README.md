@@ -45,7 +45,7 @@ The service organizes subgraphs into **projects** using environment variables:
 ```bash
 docker run -d \
   --name supergraph-builder \
-  -p 3000:3000 \
+  -p 8080:8080 \
   -e SUBGRAPH_MYPROJECT_USERS=http://users-service:4001/graphql \
   -e SUBGRAPH_MYPROJECT_PRODUCTS=http://products-service:4002/graphql \
   revisium/supergraph-builder:v0.2.0
@@ -54,7 +54,7 @@ docker run -d \
 2. **Get your supergraph**:
 
 ```bash
-curl http://localhost:3000/supergraph/myproject
+curl http://localhost:8080/supergraph/myproject
 ```
 
 ## Docker Compose
@@ -65,13 +65,13 @@ services:
   supergraph-builder:
     image: revisium/supergraph-builder:v0.2.0
     ports:
-      - '3000:3000'
+      - '8080:8080'
     environment:
       SUBGRAPH_MYPROJECT_USERS: http://users-service:4001/graphql
       SUBGRAPH_MYPROJECT_PRODUCTS: http://products-service:4002/graphql
       SUBGRAPH_MYPROJECT_POLL_INTERVAL_S: 30
     healthcheck:
-      test: ['CMD', 'curl', '-f', 'http://localhost:3000/health/readiness']
+      test: ['CMD', 'curl', '-f', 'http://localhost:8080/health/readiness']
       interval: 30s
       timeout: 10s
       retries: 3
@@ -206,7 +206,7 @@ spec:
         - name: supergraph-builder
           image: revisium/supergraph-builder:v0.2.0
           ports:
-            - containerPort: 3000
+            - containerPort: 8080
           env:
             - name: SUBGRAPH_MYPROJECT_USERS
               value: 'http://users-service:4001/graphql'
@@ -215,12 +215,12 @@ spec:
           livenessProbe:
             httpGet:
               path: /health/liveness
-              port: 3000
+              port: 8080
             initialDelaySeconds: 30
           readinessProbe:
             httpGet:
               path: /health/readiness
-              port: 3000
+              port: 8080
             initialDelaySeconds: 5
 ---
 apiVersion: v1
@@ -232,7 +232,7 @@ spec:
     app: supergraph-builder
   ports:
     - port: 80
-      targetPort: 3000
+      targetPort: 8080
 ```
 
 Apply with:
@@ -303,7 +303,7 @@ Returns the composed supergraph SDL for the project.
 **Example**:
 
 ```bash
-curl http://localhost:3000/supergraph/shop
+curl http://localhost:8080/supergraph/shop
 ```
 
 ## Retry Strategy
@@ -314,7 +314,7 @@ The service handles network failures with exponential backoff:
 | ------- | ---------------- |
 | 1       | 750ms - 1250ms   |
 | 2       | 1500ms - 2500ms  |
-| 3       | 3000ms - 5000ms  |
+| 3       | 8080ms - 5000ms  |
 | 4+      | Up to 30 seconds |
 
 Logs show retry attempts and successful recoveries:
