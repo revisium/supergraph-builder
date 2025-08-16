@@ -1,32 +1,33 @@
-# Supergraph Builder
-
 <div align="center">
 
 ```mermaid
 graph TD
-    A["📊 Users Service<br/>GraphQL Schema"] 
-    B["🛍️ Products Service<br/>GraphQL Schema"]
-    C["📦 Orders Service<br/>GraphQL Schema"]
+    A["Users Service<br/><small>GraphQL Schema</small>"] 
+    B["Products Service<br/><small>GraphQL Schema</small>"]
+    C["Orders Service<br/><small>GraphQL Schema</small>"]
     
-    A --> D["🔗 Supergraph Builder"]
+    A --> D["Supergraph Builder<br/><small>Schema Composition</small>"]
     B --> D
     C --> D
     
-    D --> E["⚡ Unified Supergraph<br/>GraphQL API"]
+    D --> E["Unified Supergraph<br/><small>Single GraphQL API</small>"]
     
-    F["📡 GraphQL Hive<br/>(Optional)"] 
+    F["GraphQL Hive<br/><small>Schema Registry</small>"] 
     D -.-> F
     
-    style D fill:#2563eb,stroke:#1e40af,stroke-width:3px,color:#fff
-    style E fill:#059669,stroke:#047857,stroke-width:2px,color:#fff
-    style F fill:#7c3aed,stroke:#6d28d9,stroke-width:2px,color:#fff
+    style A fill:#f8fafc,stroke:#64748b,stroke-width:2px,color:#334155
+    style B fill:#f8fafc,stroke:#64748b,stroke-width:2px,color:#334155
+    style C fill:#f8fafc,stroke:#64748b,stroke-width:2px,color:#334155
+    style D fill:#1e293b,stroke:#0f172a,stroke-width:3px,color:#f1f5f9
+    style E fill:#0f766e,stroke:#0d9488,stroke-width:2px,color:#f0fdfa
+    style F fill:#581c87,stroke:#7c3aed,stroke-width:2px,color:#faf5ff
 ```
 
 [![License](https://img.shields.io/github/license/revisium/supergraph-builder)](LICENSE)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.7-blue.svg)](https://www.typescriptlang.org/)
 [![NestJS](https://img.shields.io/badge/NestJS-11.0-green.svg)](https://nestjs.com/)
 
-**Apollo Federation supergraph composition service**
+**Supergraph Builder - Apollo Federation supergraph composition service**
 
 </div>
 
