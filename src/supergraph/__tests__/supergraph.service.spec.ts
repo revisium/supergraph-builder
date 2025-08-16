@@ -3,7 +3,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { composeServices } from '@apollo/composition';
 import { parse } from 'graphql';
 import * as objectHash from 'object-hash';
-import { interval } from 'rxjs';
+import * as rxjs from 'rxjs';
 import { SupergraphService } from '../supergraph.service';
 import { FetchService } from '../fetch.service';
 import { HiveCliService } from '../hive.service';
@@ -35,7 +35,7 @@ describe('SupergraphService', () => {
       hiveService.publishSchemaFile.mockResolvedValue(undefined);
 
       // Mock interval to prevent actual polling during test
-      const intervalSpy = jest.spyOn({ interval }, 'interval');
+      const intervalSpy = jest.spyOn(rxjs, 'interval');
       intervalSpy.mockReturnValue({
         pipe: jest.fn().mockReturnValue({
           subscribe: jest.fn(),
@@ -114,7 +114,7 @@ describe('SupergraphService', () => {
       hiveService.publishSchemaFile.mockResolvedValue(undefined);
 
       // Mock interval to prevent actual polling during test
-      const intervalSpy = jest.spyOn({ interval }, 'interval');
+      const intervalSpy = jest.spyOn(rxjs, 'interval');
       intervalSpy.mockReturnValue({
         pipe: jest.fn().mockReturnValue({
           subscribe: jest.fn(),
@@ -158,7 +158,7 @@ describe('SupergraphService', () => {
       storageService.saveSchema.mockResolvedValue(void 0 as any);
 
       // Mock interval to prevent actual polling during test
-      const intervalSpy = jest.spyOn({ interval }, 'interval');
+      const intervalSpy = jest.spyOn(rxjs, 'interval');
       intervalSpy.mockReturnValue({
         pipe: jest.fn().mockReturnValue({
           subscribe: jest.fn(),
@@ -188,7 +188,7 @@ describe('SupergraphService', () => {
       hiveService.publishSchemaFile.mockResolvedValue(undefined);
 
       // Mock interval to prevent actual polling during test
-      const intervalSpy = jest.spyOn({ interval }, 'interval');
+      const intervalSpy = jest.spyOn(rxjs, 'interval');
       intervalSpy.mockReturnValue({
         pipe: jest.fn().mockReturnValue({
           subscribe: jest.fn(),
@@ -219,7 +219,7 @@ describe('SupergraphService', () => {
       hiveService.publishSchemaFile.mockResolvedValue(undefined);
 
       // Mock interval to prevent actual polling during test
-      const intervalSpy = jest.spyOn({ interval }, 'interval');
+      const intervalSpy = jest.spyOn(rxjs, 'interval');
       intervalSpy.mockReturnValue({
         pipe: jest.fn().mockReturnValue({
           subscribe: jest.fn(),
@@ -251,7 +251,7 @@ describe('SupergraphService', () => {
       hiveService.publishSchemaFile.mockResolvedValue(undefined);
 
       // Mock interval to prevent actual polling during test
-      const intervalSpy = jest.spyOn({ interval }, 'interval');
+      const intervalSpy = jest.spyOn(rxjs, 'interval');
       intervalSpy.mockReturnValue({
         pipe: jest.fn().mockReturnValue({
           subscribe: jest.fn(),
@@ -293,7 +293,7 @@ describe('SupergraphService', () => {
       });
 
       // Mock interval to prevent actual polling during test
-      const intervalSpy = jest.spyOn({ interval }, 'interval');
+      const intervalSpy = jest.spyOn(rxjs, 'interval');
       intervalSpy.mockReturnValue({
         pipe: jest.fn().mockReturnValue({
           subscribe: jest.fn(),
@@ -327,7 +327,7 @@ describe('SupergraphService', () => {
       } as any);
 
       // Mock interval to prevent actual polling during test
-      const intervalSpy = jest.spyOn({ interval }, 'interval');
+      const intervalSpy = jest.spyOn(rxjs, 'interval');
       intervalSpy.mockReturnValue({
         pipe: jest.fn().mockReturnValue({
           subscribe: jest.fn(),

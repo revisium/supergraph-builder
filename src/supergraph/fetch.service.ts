@@ -1,7 +1,8 @@
 import { HttpService } from '@nestjs/axios';
 import { Injectable, Logger } from '@nestjs/common';
 import { AxiosError } from 'axios';
-import { catchError, firstValueFrom } from 'rxjs';
+import { catchError, firstValueFrom, throwError } from 'rxjs';
+import { randomBytes } from 'crypto';
 
 const sdlQuery = `
   query GetServiceSDL {
@@ -40,11 +41,14 @@ export class FetchService {
               { headers: { 'Content-Type': 'application/json' } },
             )
             .pipe(
-              catchError((error: AxiosError) => {
-                throw new Error(
-                  `Failed to fetch schema from ${url}: ${error.message}`,
-                );
-              }),
+              catchError((error: AxiosError) =>
+                throwError(
+                  () =>
+                    new Error(
+                      `Failed to fetch schema from ${url}: ${error.message}`,
+                    ),
+                ),
+              ),
             ),
         );
 
@@ -67,7 +71,9 @@ export class FetchService {
         if (attempt < maxRetries) {
           const baseDelay = Math.min(1000 * Math.pow(2, attempt), 30000);
           // Add jitter to prevent thundering herd (±25% randomization)
-          const jitter = baseDelay * 0.25 * (Math.random() * 2 - 1);
+          // Using crypto.randomBytes for higher quality randomness
+          const randomValue = randomBytes(4).readUInt32BE(0) / 0xffffffff;
+          const jitter = baseDelay * 0.25 * (randomValue * 2 - 1);
           const backoffDelay = Math.max(
             100,
             Math.min(30000, baseDelay + jitter),
