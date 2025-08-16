@@ -59,9 +59,16 @@ export class FetchService {
         lastError = error as Error;
 
         if (attempt < maxRetries) {
-          const backoffDelay = Math.min(1000 * Math.pow(2, attempt), 30000);
+          const baseDelay = Math.min(1000 * Math.pow(2, attempt), 30000);
+          // Add jitter to prevent thundering herd (±25% randomization)
+          const jitter = baseDelay * 0.25 * (Math.random() * 2 - 1);
+          const backoffDelay = Math.max(
+            100,
+            Math.min(30000, baseDelay + jitter),
+          );
+
           this.logger.warn(
-            `Retry attempt ${attempt + 1}/${maxRetries + 1} for ${url} in ${backoffDelay}ms`,
+            `Retry attempt ${attempt + 1}/${maxRetries + 1} for ${url} in ${Math.round(backoffDelay)}ms`,
           );
           await new Promise((resolve) => setTimeout(resolve, backoffDelay));
         }

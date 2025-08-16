@@ -85,4 +85,30 @@ describe('getProjectsFromEnvironment', () => {
       MAX_RUNTIME_ERRORS: 5,
     });
   });
+
+  test('handles invalid numeric configuration values', () => {
+    process.env.SUBGRAPH_PROJECT1_SERVICEA = 'https://example.com/graphql';
+    process.env.SUBGRAPH_PROJECT1_POLL_INTERVAL_S = 'invalid';
+    process.env.SUBGRAPH_PROJECT1_MAX_RUNTIME_ERRORS = '-5';
+
+    const [project1] = getProjectsFromEnvironment();
+
+    expect(project1.system).toMatchObject({
+      POLL_INTERVAL_S: 60, // Default fallback
+      MAX_RUNTIME_ERRORS: 5, // Default fallback for negative value
+    });
+  });
+
+  test('handles empty string configuration values', () => {
+    process.env.SUBGRAPH_PROJECT1_SERVICEA = 'https://example.com/graphql';
+    process.env.SUBGRAPH_PROJECT1_POLL_INTERVAL_S = '';
+    process.env.SUBGRAPH_PROJECT1_MAX_RUNTIME_ERRORS = '';
+
+    const [project1] = getProjectsFromEnvironment();
+
+    expect(project1.system).toMatchObject({
+      POLL_INTERVAL_S: 60, // Default fallback
+      MAX_RUNTIME_ERRORS: 5, // Default fallback
+    });
+  });
 });

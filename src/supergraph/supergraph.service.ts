@@ -74,7 +74,7 @@ export class SupergraphService implements OnApplicationBootstrap {
       )
       .subscribe({
         error: (error: Error) => {
-          this.logger.fatal(
+          this.logger.error(
             `[${id}] Fatal polling error: ${error.message}. Shutting down application.`,
           );
           process.exit(1);

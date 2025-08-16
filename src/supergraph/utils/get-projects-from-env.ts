@@ -17,14 +17,17 @@ export type ProjectConfig = {
 
 type RESERVED_KEYS = 'POLL_INTERVAL_S' | 'MAX_RUNTIME_ERRORS';
 
-const RESERVED_KEYS_DEFAULT_VALUES: Record<RESERVED_KEYS[number], string> = {
+const RESERVED_KEYS_DEFAULT_VALUES: Record<RESERVED_KEYS, string> = {
   POLL_INTERVAL_S: '60',
   MAX_RUNTIME_ERRORS: '5',
 };
 
-function parseValueToNumber(raw: string): number {
+function parseValueToNumber(raw: string, defaultValue: number = 0): number {
   const num = Number(raw);
-  return Number.isNaN(num) ? 0 : num;
+  if (Number.isNaN(num) || num < 0) {
+    return defaultValue;
+  }
+  return num;
 }
 
 export function getProjectsFromEnvironment(): ProjectConfig[] {
@@ -46,12 +49,14 @@ export function getProjectsFromEnvironment(): ProjectConfig[] {
         system: {
           POLL_INTERVAL_S: parseValueToNumber(
             RESERVED_KEYS_DEFAULT_VALUES.POLL_INTERVAL_S,
+            60,
           ),
           HIVE_TARGET: '',
           HIVE_ACCESS_TOKEN: '',
           HIVE_AUTHOR: '',
           MAX_RUNTIME_ERRORS: parseValueToNumber(
             RESERVED_KEYS_DEFAULT_VALUES.MAX_RUNTIME_ERRORS,
+            5,
           ),
         },
       };
@@ -60,9 +65,9 @@ export function getProjectsFromEnvironment(): ProjectConfig[] {
     const cfg = projectsMap[projectKey];
 
     if (settingKey === 'POLL_INTERVAL_S') {
-      cfg.system.POLL_INTERVAL_S = parseValueToNumber(envVal);
+      cfg.system.POLL_INTERVAL_S = parseValueToNumber(envVal, 60);
     } else if (settingKey === 'MAX_RUNTIME_ERRORS') {
-      cfg.system.MAX_RUNTIME_ERRORS = parseValueToNumber(envVal);
+      cfg.system.MAX_RUNTIME_ERRORS = parseValueToNumber(envVal, 5);
     } else if (
       settingKey === 'HIVE_TARGET' ||
       settingKey === 'HIVE_ACCESS_TOKEN' ||

@@ -190,7 +190,7 @@ describe('FetchService', () => {
       );
     });
 
-    it('should implement exponential backoff correctly', async () => {
+    it('should implement exponential backoff with jitter', async () => {
       httpService.post.mockReturnValue(
         throwError(() => new Error('Network error')),
       );
@@ -204,18 +204,18 @@ describe('FetchService', () => {
 
       await expect(service.fetchSchema(mockUrl, 2)).rejects.toThrow();
 
-      // Check that setTimeout was called with exponential backoff delays
+      // Check that setTimeout was called with exponential backoff delays (with jitter)
       expect(setTimeoutSpy).toHaveBeenCalledTimes(2);
-      expect(setTimeoutSpy).toHaveBeenNthCalledWith(
-        1,
-        expect.any(Function),
-        1000,
-      ); // 2^0 * 1000
-      expect(setTimeoutSpy).toHaveBeenNthCalledWith(
-        2,
-        expect.any(Function),
-        2000,
-      ); // 2^1 * 1000
+      
+      // First retry should be around 1000ms ±25% jitter (750-1250ms range)
+      const firstDelay = setTimeoutSpy.mock.calls[0][1] as number;
+      expect(firstDelay).toBeGreaterThanOrEqual(750);
+      expect(firstDelay).toBeLessThanOrEqual(1250);
+      
+      // Second retry should be around 2000ms ±25% jitter (1500-2500ms range)
+      const secondDelay = setTimeoutSpy.mock.calls[1][1] as number;
+      expect(secondDelay).toBeGreaterThanOrEqual(1500);
+      expect(secondDelay).toBeLessThanOrEqual(2500);
     });
 
     it('should cap backoff delay at 30 seconds', async () => {

@@ -77,6 +77,11 @@ describe('SupergraphService', () => {
     });
 
     it('should exit process on bootstrap failure', async () => {
+      // Mock process.exit for this specific test
+      jest.spyOn(process, 'exit').mockImplementation(() => {
+        throw new Error('Process exit called');
+      });
+
       (getProjectsFromEnvironment as jest.Mock).mockReturnValue([
         mockProjectConfig,
       ]);
@@ -166,13 +171,6 @@ describe('SupergraphService', () => {
 
       intervalSpy.mockRestore();
     });
-
-    beforeEach(() => {
-      // Mock process.exit to prevent actual exit during tests
-      jest.spyOn(process, 'exit').mockImplementation(() => {
-        throw new Error('Process exit called');
-      });
-    });
   });
 
   describe('getSuperGraph', () => {
@@ -182,6 +180,13 @@ describe('SupergraphService', () => {
     });
 
     it('should return supergraph SDL after successful composition', async () => {
+      (getProjectsFromEnvironment as jest.Mock).mockReturnValue([
+        mockProjectConfig,
+      ]);
+      fetchService.fetchSchema.mockResolvedValue(mockSdl);
+      storageService.saveSchema.mockResolvedValue(void 0 as any);
+      hiveService.publishSchemaFile.mockResolvedValue(undefined);
+
       // Mock interval to prevent actual polling during test
       const intervalSpy = jest.spyOn({ interval }, 'interval');
       intervalSpy.mockReturnValue({
@@ -196,15 +201,6 @@ describe('SupergraphService', () => {
       expect(result).toBe('composed supergraph sdl');
 
       intervalSpy.mockRestore();
-    });
-
-    beforeEach(() => {
-      (getProjectsFromEnvironment as jest.Mock).mockReturnValue([
-        mockProjectConfig,
-      ]);
-      fetchService.fetchSchema.mockResolvedValue(mockSdl);
-      storageService.saveSchema.mockResolvedValue(void 0 as any);
-      hiveService.publishSchemaFile.mockResolvedValue(undefined);
     });
   });
 
@@ -276,16 +272,17 @@ describe('SupergraphService', () => {
 
       intervalSpy.mockRestore();
     });
-
-    beforeEach(() => {
-      jest.spyOn(process, 'exit').mockImplementation(() => {
-        throw new Error('Process exit called');
-      });
-    });
   });
 
   describe('schema composition', () => {
     it('should handle composition errors gracefully', async () => {
+      (getProjectsFromEnvironment as jest.Mock).mockReturnValue([
+        mockProjectConfig,
+      ]);
+      fetchService.fetchSchema.mockResolvedValue(mockSdl);
+      storageService.saveSchema.mockResolvedValue(void 0 as any);
+      hiveService.publishSchemaFile.mockResolvedValue(undefined);
+
       (
         composeServices as jest.MockedFunction<typeof composeServices>
       ).mockReturnValue({
@@ -313,6 +310,13 @@ describe('SupergraphService', () => {
     });
 
     it('should handle missing supergraph SDL', async () => {
+      (getProjectsFromEnvironment as jest.Mock).mockReturnValue([
+        mockProjectConfig,
+      ]);
+      fetchService.fetchSchema.mockResolvedValue(mockSdl);
+      storageService.saveSchema.mockResolvedValue(void 0 as any);
+      hiveService.publishSchemaFile.mockResolvedValue(undefined);
+
       (
         composeServices as jest.MockedFunction<typeof composeServices>
       ).mockReturnValue({
@@ -337,15 +341,6 @@ describe('SupergraphService', () => {
       expect(result).toBeUndefined();
 
       intervalSpy.mockRestore();
-    });
-
-    beforeEach(() => {
-      (getProjectsFromEnvironment as jest.Mock).mockReturnValue([
-        mockProjectConfig,
-      ]);
-      fetchService.fetchSchema.mockResolvedValue(mockSdl);
-      storageService.saveSchema.mockResolvedValue(void 0 as any);
-      hiveService.publishSchemaFile.mockResolvedValue(undefined);
     });
   });
 
