@@ -2,6 +2,26 @@
 
 <div align="center">
 
+```mermaid
+graph TD
+    A["📊 Users Service<br/>GraphQL Schema"] 
+    B["🛍️ Products Service<br/>GraphQL Schema"]
+    C["📦 Orders Service<br/>GraphQL Schema"]
+    
+    A --> D["🔗 Supergraph Builder"]
+    B --> D
+    C --> D
+    
+    D --> E["⚡ Unified Supergraph<br/>GraphQL API"]
+    
+    F["📡 GraphQL Hive<br/>(Optional)"] 
+    D -.-> F
+    
+    style D fill:#2563eb,stroke:#1e40af,stroke-width:3px,color:#fff
+    style E fill:#059669,stroke:#047857,stroke-width:2px,color:#fff
+    style F fill:#7c3aed,stroke:#6d28d9,stroke-width:2px,color:#fff
+```
+
 [![License](https://img.shields.io/github/license/revisium/supergraph-builder)](LICENSE)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.7-blue.svg)](https://www.typescriptlang.org/)
 [![NestJS](https://img.shields.io/badge/NestJS-11.0-green.svg)](https://nestjs.com/)
@@ -9,6 +29,8 @@
 **Apollo Federation supergraph composition service**
 
 </div>
+
+---
 
 ## Overview
 
@@ -286,11 +308,17 @@ export SUBGRAPH_ANALYTICS_METRICS=http://localhost:4004/graphql
 
 ### Health Check
 
+#### Readiness Probe
 ```http
-GET /health
+GET /health/readiness
 ```
+Returns 200 OK when service is ready to accept traffic.
 
-Returns service status (200 OK if healthy).
+#### Liveness Probe
+```http
+GET /health/liveness
+```
+Returns 200 OK when service is alive and functioning.
 
 ### Get Supergraph
 
