@@ -43,6 +43,10 @@ export class SupergraphService implements OnApplicationBootstrap {
     projects.forEach((project) => this.startPolling(project));
   }
 
+  public isThereAnySupergraph() {
+    return this.supergraphs.size > 0;
+  }
+
   public getSuperGraph(projectId: string): string | undefined {
     return this.supergraphs.get(projectId);
   }
