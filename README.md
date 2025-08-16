@@ -2,19 +2,19 @@
 
 ```mermaid
 graph TD
-    A["Users Service<br/>GraphQL Schema"] 
+    A["Users Service<br/>GraphQL Schema"]
     B["Products Service<br/>GraphQL Schema"]
     C["Orders Service<br/>GraphQL Schema"]
-    
+
     A --> D["Supergraph Builder<br/>Schema Composition"]
     B --> D
     C --> D
-    
+
     D --> G["GraphQL Gateway<br/>Apollo Router / Hive Gateway"]
-    
-    F["GraphQL Hive<br/>Schema Registry"] 
+
+    F["GraphQL Hive<br/>Schema Registry"]
     D -.-> F
-    
+
     style A fill:#f8fafc,stroke:#64748b,stroke-width:2px,color:#334155
     style B fill:#f8fafc,stroke:#64748b,stroke-width:2px,color:#334155
     style C fill:#f8fafc,stroke:#64748b,stroke-width:2px,color:#334155
@@ -23,7 +23,7 @@ graph TD
     style F fill:#f8fafc,stroke:#64748b,stroke-width:2px,color:#334155
 ```
 
-[![License](https://img.shields.io/github/license/revisium/supergraph-builder)](LICENSE)
+![GitHub License](https://img.shields.io/github/license/revisium/supergraph-builder)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.7-blue.svg)](https://www.typescriptlang.org/)
 [![NestJS](https://img.shields.io/badge/NestJS-11.0-green.svg)](https://nestjs.com/)
 
@@ -270,7 +270,7 @@ kubectl apply -f supergraph-builder.yaml
 ### Environment Variables
 
 | Variable                                | Default | Description                              |
-| --------------------------------------- |---------| ---------------------------------------- |
+| --------------------------------------- | ------- | ---------------------------------------- |
 | `SUBGRAPH_<PROJECT>_<SERVICE>`          | -       | Subgraph GraphQL endpoint URL (required) |
 | `SUBGRAPH_<PROJECT>_POLL_INTERVAL_S`    | `60`    | Schema polling interval in seconds       |
 | `SUBGRAPH_<PROJECT>_MAX_RUNTIME_ERRORS` | `5`     | Maximum retry attempts                   |
@@ -311,15 +311,19 @@ export SUBGRAPH_ANALYTICS_METRICS=http://localhost:4004/graphql
 ### Health Check
 
 #### Readiness Probe
+
 ```http
 GET /health/readiness
 ```
+
 Returns 200 OK when service is ready to accept traffic.
 
 #### Liveness Probe
+
 ```http
 GET /health/liveness
 ```
+
 Returns 200 OK when service is alive and functioning.
 
 ### Get Supergraph
