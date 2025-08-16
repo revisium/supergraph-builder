@@ -4,7 +4,7 @@
 
 [![License](https://img.shields.io/github/license/revisium/supergraph-builder)](LICENSE)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.7-blue.svg)](https://www.typescriptlang.org/)
-[![NestJS](https://img.shields.io/badge/NestJS-11.0-red.svg)](https://nestjs.com/)
+[![NestJS](https://img.shields.io/badge/NestJS-11.0-green.svg)](https://nestjs.com/)
 
 **Apollo Federation supergraph composition service**
 
