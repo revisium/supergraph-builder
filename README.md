@@ -1,23 +1,47 @@
-# Supergraph Builder
-
 <div align="center">
+
+```mermaid
+graph TD
+    A["Users Service<br/>GraphQL Schema"] 
+    B["Products Service<br/>GraphQL Schema"]
+    C["Orders Service<br/>GraphQL Schema"]
+    
+    A --> D["Supergraph Builder<br/>Schema Composition"]
+    B --> D
+    C --> D
+    
+    D --> G["GraphQL Gateway<br/>Apollo Router / Hive Gateway"]
+    
+    F["GraphQL Hive<br/>Schema Registry"] 
+    D -.-> F
+    
+    style A fill:#f8fafc,stroke:#64748b,stroke-width:2px,color:#334155
+    style B fill:#f8fafc,stroke:#64748b,stroke-width:2px,color:#334155
+    style C fill:#f8fafc,stroke:#64748b,stroke-width:2px,color:#334155
+    style D fill:#1e293b,stroke:#0f172a,stroke-width:3px,color:#f1f5f9
+    style G fill:#f8fafc,stroke:#64748b,stroke-width:2px,color:#334155
+    style F fill:#f8fafc,stroke:#64748b,stroke-width:2px,color:#334155
+```
 
 [![License](https://img.shields.io/github/license/revisium/supergraph-builder)](LICENSE)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.7-blue.svg)](https://www.typescriptlang.org/)
 [![NestJS](https://img.shields.io/badge/NestJS-11.0-green.svg)](https://nestjs.com/)
 
-**Apollo Federation supergraph composition service**
+**Supergraph Builder - Apollo Federation supergraph composition service**
 
 </div>
 
+---
+
 ## Overview
 
-A simple service that keeps your Apollo Federation supergraph updated by continuously fetching subgraph schemas and composing them. Optionally publishes schema changes to a registry (GraphQL Hive). Built with NestJS and TypeScript.
+A simple service that keeps your Apollo Federation supergraph updated by continuously fetching subgraph schemas and composing them. The generated supergraph schema is designed to be consumed by GraphQL gateways like Apollo Router, Hive Gateway, or Apollo Federation Gateway. Optionally publishes schema changes to a registry (GraphQL Hive). Built with NestJS and TypeScript.
 
 ### Features
 
 - **Continuous Schema Fetching** - Polls subgraph endpoints to keep schemas up-to-date
 - **Automatic Composition** - Builds Apollo Federation supergraph from fetched schemas
+- **Gateway Integration** - Generates supergraph schemas for Apollo Router/Hive Gateway consumption
 - **Registry Publishing** - Optionally publishes schema changes to GraphQL Hive
 - **Retry Logic** - Handles temporary network failures with exponential backoff
 - **Docker Ready** - Containerized deployment
@@ -286,11 +310,17 @@ export SUBGRAPH_ANALYTICS_METRICS=http://localhost:4004/graphql
 
 ### Health Check
 
+#### Readiness Probe
 ```http
-GET /health
+GET /health/readiness
 ```
+Returns 200 OK when service is ready to accept traffic.
 
-Returns service status (200 OK if healthy).
+#### Liveness Probe
+```http
+GET /health/liveness
+```
+Returns 200 OK when service is alive and functioning.
 
 ### Get Supergraph
 
