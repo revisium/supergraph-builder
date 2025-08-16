@@ -2,13 +2,8 @@ import { Injectable } from '@nestjs/common';
 import { HealthIndicatorService } from '@nestjs/terminus';
 import { SupergraphService } from 'src/supergraph/supergraph.service';
 
-export interface Dog {
-  name: string;
-  type: string;
-}
-
 @Injectable()
-export class SupergraphlHealthIndicator {
+export class SupergraphHealthIndicator {
   constructor(
     private readonly healthIndicatorService: HealthIndicatorService,
     private readonly supergraph: SupergraphService,
