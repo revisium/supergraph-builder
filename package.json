@@ -1,6 +1,6 @@
 {
   "name": "supergraph-builder",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "Supergraph Builder is a simple service that keeps your Apollo Federation supergraph updated by continuously fetching subgraph schemas and composing them. Optionally publishes schema changes to a registry (GraphQL Hive). Built with NestJS and TypeScript.",
   "author": "Anton Kashirov",
   "private": false,
