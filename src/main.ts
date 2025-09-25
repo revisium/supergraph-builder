@@ -10,7 +10,7 @@ async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
     logger: new ConsoleLogger({
       json: true,
-      colors: true,
+      colors: process.env.NODE_ENV === 'development',
     }),
   });
   app.set('trust proxy', true);
