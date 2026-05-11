@@ -46,6 +46,7 @@ graph LR
 - [Compatibility](#compatibility)
 - [Development](#development)
 - [License](#license)
+- [Issues](#issues)
 
 ---
 
