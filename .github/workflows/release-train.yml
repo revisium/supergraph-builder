@@ -38,7 +38,7 @@ permissions:
 jobs:
   release-train:
     name: Release train
-    uses: revisium/revisium-actions/.github/workflows/release-train.yml@184b609dcbc1e23f14021141f29226d4e6a0f1ac # v0.3.6
+    uses: revisium/revisium-actions/.github/workflows/release-train.yml@174e7053ee6cc463f376441c77e19dcb85919d41 # v0.3.6
     with:
       action: ${{ inputs.action }}
       dry_run: ${{ inputs.dry_run }}
