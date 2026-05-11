@@ -11,8 +11,8 @@ import {
 
 describe('AppModule (e2e)', () => {
   const ORIGINAL_ENV = process.env;
-  let app: INestApplication<App>;
-  let fixture: SubgraphFixture;
+  let app: INestApplication<App> | undefined;
+  let fixture: SubgraphFixture | undefined;
 
   beforeEach(async () => {
     process.env = { ...ORIGINAL_ENV };
@@ -34,14 +34,21 @@ describe('AppModule (e2e)', () => {
 
   afterEach(async () => {
     try {
-      await app.close();
-      await fixture.close();
+      if (app) {
+        await app.close();
+        app = undefined;
+      }
+      if (fixture) {
+        await fixture.close();
+        fixture = undefined;
+      }
     } finally {
       process.env = ORIGINAL_ENV;
     }
   });
 
   it('exposes liveness probe', () => {
+    if (!app) throw new Error('app not initialized');
     return request(app.getHttpServer())
       .get('/health/liveness')
       .expect(200)
@@ -52,6 +59,7 @@ describe('AppModule (e2e)', () => {
   });
 
   it('exposes composed supergraph for the configured project', () => {
+    if (!app) throw new Error('app not initialized');
     return request(app.getHttpServer())
       .get('/supergraph/demo')
       .expect(200)
@@ -62,6 +70,7 @@ describe('AppModule (e2e)', () => {
   });
 
   it('returns 404 for unknown projects', () => {
+    if (!app) throw new Error('app not initialized');
     return request(app.getHttpServer()).get('/supergraph/unknown').expect(404);
   });
 });
