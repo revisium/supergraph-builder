@@ -111,4 +111,135 @@ describe('getProjectsFromEnvironment', () => {
       MAX_RUNTIME_ERRORS: 5, // Default fallback
     });
   });
+
+  describe('subgraph headers (__HEADER_ convention)', () => {
+    test('attaches a single header to the matching subgraph', () => {
+      process.env.SUBGRAPH_DEMO_DATA = 'https://example.com/data/graphql';
+      process.env.SUBGRAPH_DEMO_DATA__HEADER_X_API_KEY = 'secret-123';
+
+      const [project] = getProjectsFromEnvironment();
+
+      expect(project.subGraphs).toEqual([
+        {
+          name: 'data',
+          url: 'https://example.com/data/graphql',
+          headers: { 'x-api-key': 'secret-123' },
+        },
+      ]);
+    });
+
+    test('attaches multiple headers to the same subgraph', () => {
+      process.env.SUBGRAPH_DEMO_DATA = 'https://example.com/data/graphql';
+      process.env.SUBGRAPH_DEMO_DATA__HEADER_AUTHORIZATION = 'Bearer abc';
+      process.env.SUBGRAPH_DEMO_DATA__HEADER_X_REQUEST_ID = 'builder';
+
+      const [project] = getProjectsFromEnvironment();
+
+      expect(project.subGraphs).toHaveLength(1);
+      expect(project.subGraphs[0]).toEqual({
+        name: 'data',
+        url: 'https://example.com/data/graphql',
+        headers: {
+          authorization: 'Bearer abc',
+          'x-request-id': 'builder',
+        },
+      });
+    });
+
+    test('isolates headers per subgraph in the same project', () => {
+      process.env.SUBGRAPH_DEMO_DATA = 'https://example.com/data/graphql';
+      process.env.SUBGRAPH_DEMO_DATA__HEADER_X_API_KEY = 'data-key';
+      process.env.SUBGRAPH_DEMO_CMS = 'https://example.com/cms/graphql';
+      process.env.SUBGRAPH_DEMO_CMS__HEADER_X_API_KEY = 'cms-key';
+
+      const [project] = getProjectsFromEnvironment();
+
+      const data = project.subGraphs.find((s) => s.name === 'data');
+      const cms = project.subGraphs.find((s) => s.name === 'cms');
+
+      expect(data?.headers).toEqual({ 'x-api-key': 'data-key' });
+      expect(cms?.headers).toEqual({ 'x-api-key': 'cms-key' });
+    });
+
+    test('omits headers field when no header env var is set', () => {
+      process.env.SUBGRAPH_DEMO_DATA = 'https://example.com/data/graphql';
+
+      const [project] = getProjectsFromEnvironment();
+
+      expect(project.subGraphs[0]).toEqual({
+        name: 'data',
+        url: 'https://example.com/data/graphql',
+      });
+      expect(project.subGraphs[0].headers).toBeUndefined();
+    });
+
+    test('supports subgraph names containing underscores', () => {
+      process.env.SUBGRAPH_SHOP_USER_API = 'https://example.com/users/graphql';
+      process.env.SUBGRAPH_SHOP_USER_API__HEADER_X_API_KEY = 'shop-key';
+
+      const [project] = getProjectsFromEnvironment();
+
+      expect(project.subGraphs).toEqual([
+        {
+          name: 'user_api',
+          url: 'https://example.com/users/graphql',
+          headers: { 'x-api-key': 'shop-key' },
+        },
+      ]);
+    });
+
+    test('skips empty header values', () => {
+      process.env.SUBGRAPH_DEMO_DATA = 'https://example.com/data/graphql';
+      process.env.SUBGRAPH_DEMO_DATA__HEADER_X_API_KEY = '';
+
+      const [project] = getProjectsFromEnvironment();
+
+      expect(project.subGraphs[0].headers).toBeUndefined();
+    });
+
+    test('skips orphan headers when the subgraph URL is not defined', () => {
+      process.env.SUBGRAPH_DEMO_DATA__HEADER_X_API_KEY = 'orphan';
+
+      const result = getProjectsFromEnvironment();
+
+      expect(result).toEqual([]);
+    });
+
+    test('skips header config with invalid header name', () => {
+      process.env.SUBGRAPH_DEMO_DATA = 'https://example.com/data/graphql';
+      // empty header name after the marker
+      process.env['SUBGRAPH_DEMO_DATA__HEADER_'] = 'value';
+
+      const [project] = getProjectsFromEnvironment();
+
+      expect(project.subGraphs[0].headers).toBeUndefined();
+    });
+
+    test('header config is order-independent (header before url)', () => {
+      // env-var iteration order is implementation-defined; the parser must
+      // not depend on URL being seen before headers.
+      process.env.SUBGRAPH_DEMO_DATA__HEADER_X_API_KEY = 'key';
+      process.env.SUBGRAPH_DEMO_DATA = 'https://example.com/data/graphql';
+
+      const [project] = getProjectsFromEnvironment();
+
+      expect(project.subGraphs).toEqual([
+        {
+          name: 'data',
+          url: 'https://example.com/data/graphql',
+          headers: { 'x-api-key': 'key' },
+        },
+      ]);
+    });
+
+    test('does not treat header env vars as additional subgraphs', () => {
+      process.env.SUBGRAPH_DEMO_DATA = 'https://example.com/data/graphql';
+      process.env.SUBGRAPH_DEMO_DATA__HEADER_AUTHORIZATION = 'Bearer x';
+
+      const [project] = getProjectsFromEnvironment();
+
+      expect(project.subGraphs).toHaveLength(1);
+      expect(project.subGraphs[0].name).toBe('data');
+    });
+  });
 });

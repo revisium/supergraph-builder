@@ -272,12 +272,43 @@ kubectl apply -f supergraph-builder.yaml
 
 ### Environment Variables
 
-| Variable                                | Default | Description                              |
-| --------------------------------------- | ------- | ---------------------------------------- |
-| `SUBGRAPH_<PROJECT>_<SERVICE>`          | -       | Subgraph GraphQL endpoint URL (required) |
-| `SUBGRAPH_<PROJECT>_POLL_INTERVAL_S`    | `60`    | Schema polling interval in seconds       |
-| `SUBGRAPH_<PROJECT>_MAX_RUNTIME_ERRORS` | `5`     | Maximum retry attempts                   |
-| `PORT`                                  | `8080`  | HTTP server port                         |
+| Variable                                                | Default | Description                                                                              |
+| ------------------------------------------------------- | ------- | ---------------------------------------------------------------------------------------- |
+| `SUBGRAPH_<PROJECT>_<SERVICE>`                          | -       | Subgraph GraphQL endpoint URL (required)                                                 |
+| `SUBGRAPH_<PROJECT>_<SERVICE>__HEADER_<HEADER_NAME>`    | -       | Custom HTTP header sent with the SDL introspection request (`_` → `-`, see below)        |
+| `SUBGRAPH_<PROJECT>_POLL_INTERVAL_S`                    | `60`    | Schema polling interval in seconds                                                       |
+| `SUBGRAPH_<PROJECT>_MAX_RUNTIME_ERRORS`                 | `5`     | Maximum retry attempts                                                                   |
+| `PORT`                                                  | `8080`  | HTTP server port                                                                         |
+
+### Subgraph Authentication Headers
+
+When a subgraph requires authentication for SDL introspection (e.g. an API key
+or bearer token), attach headers to that subgraph using the
+`SUBGRAPH_<PROJECT>_<SERVICE>__HEADER_<HEADER_NAME>` convention. The
+double-underscore (`__HEADER_`) separates the subgraph identifier from the
+header configuration. The header-name segment is mapped to a canonical HTTP
+header name by lowercasing it and replacing `_` with `-`.
+
+```bash
+# URL
+SUBGRAPH_SHOP_USERS=https://users.example.com/graphql
+# Sent as:   x-api-key: secret-123
+SUBGRAPH_SHOP_USERS__HEADER_X_API_KEY=secret-123
+# Sent as:   authorization: Bearer eyJhbGc...
+SUBGRAPH_SHOP_USERS__HEADER_AUTHORIZATION='Bearer eyJhbGc...'
+```
+
+Notes:
+
+- Multiple headers per subgraph are supported; each header is its own env var.
+- Headers are scoped to a single subgraph; isolation between subgraphs is
+  preserved (configuring `data` doesn't affect `cms`).
+- `Content-Type` is always set to `application/json` by the fetcher and cannot
+  be overridden (case-insensitive).
+- Empty values are ignored, which is convenient when wiring a Kubernetes
+  `secretKeyRef` that may be temporarily missing during a rollout.
+- Header values are not logged. Startup logs only show the header **names** for
+  each configured subgraph.
 
 ### GraphQL Hive (Optional)
 
@@ -307,6 +338,19 @@ export SUBGRAPH_SHOP_PRODUCTS=http://localhost:4002/graphql
 # Project 2
 export SUBGRAPH_ANALYTICS_EVENTS=http://localhost:4003/graphql
 export SUBGRAPH_ANALYTICS_METRICS=http://localhost:4004/graphql
+```
+
+**Authenticated subgraph** (Kubernetes, pulling the key from a `Secret`):
+
+```yaml
+env:
+  - name: SUBGRAPH_SHOP_USERS
+    value: 'https://users.example.com/graphql'
+  - name: SUBGRAPH_SHOP_USERS__HEADER_X_API_KEY
+    valueFrom:
+      secretKeyRef:
+        name: app-secret
+        key: USERS_API_KEY
 ```
 
 ## API

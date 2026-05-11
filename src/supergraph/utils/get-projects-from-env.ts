@@ -1,6 +1,7 @@
 export type SubGraphEntry = {
   name: string;
   url: string;
+  headers?: Record<string, string>;
 };
 
 export type ProjectConfig = {
@@ -22,6 +23,9 @@ const RESERVED_KEYS_DEFAULT_VALUES: Record<RESERVED_KEYS, string> = {
   MAX_RUNTIME_ERRORS: '5',
 };
 
+const HEADER_MARKER = '__HEADER_';
+const VALID_HEADER_NAME = /^[a-z0-9-]+$/;
+
 function parseValueToNumber(raw: string, defaultValue: number = 0): number {
   const num = Number(raw);
   if (Number.isNaN(num) || num < 0) {
@@ -30,8 +34,40 @@ function parseValueToNumber(raw: string, defaultValue: number = 0): number {
   return num;
 }
 
+type PendingHeader = {
+  project: string;
+  subGraphKey: string;
+  headerName: string;
+  value: string;
+};
+
+function tryParseHeader(
+  settingKey: string,
+  envVal: string,
+  projectKey: string,
+): PendingHeader | null {
+  const markerIndex = settingKey.indexOf(HEADER_MARKER);
+  if (markerIndex < 0) return null;
+
+  const subGraphKey = settingKey.slice(0, markerIndex);
+  const rawHeaderName = settingKey.slice(markerIndex + HEADER_MARKER.length);
+
+  if (!subGraphKey || !rawHeaderName) return null;
+
+  const headerName = rawHeaderName.toLowerCase().replaceAll('_', '-');
+  if (!VALID_HEADER_NAME.test(headerName)) return null;
+
+  return {
+    project: projectKey,
+    subGraphKey: subGraphKey.toLowerCase(),
+    headerName,
+    value: envVal,
+  };
+}
+
 export function getProjectsFromEnvironment(): ProjectConfig[] {
   const projectsMap: Record<string, ProjectConfig> = {};
+  const pendingHeaders: PendingHeader[] = [];
 
   Object.entries(process.env).forEach(([envKey, envVal]) => {
     if (!envKey.startsWith('SUBGRAPH_') || !envVal) return;
@@ -64,6 +100,12 @@ export function getProjectsFromEnvironment(): ProjectConfig[] {
 
     const cfg = projectsMap[projectKey];
 
+    const headerMatch = tryParseHeader(settingKey, envVal, projectKey);
+    if (headerMatch) {
+      pendingHeaders.push(headerMatch);
+      return;
+    }
+
     if (settingKey === 'POLL_INTERVAL_S') {
       cfg.system.POLL_INTERVAL_S = parseValueToNumber(envVal, 60);
     } else if (settingKey === 'MAX_RUNTIME_ERRORS') {
@@ -80,5 +122,16 @@ export function getProjectsFromEnvironment(): ProjectConfig[] {
     }
   });
 
-  return Object.values(projectsMap);
+  for (const pending of pendingHeaders) {
+    const project = projectsMap[pending.project];
+    if (!project) continue;
+    const subGraph = project.subGraphs.find(
+      (s) => s.name === pending.subGraphKey,
+    );
+    if (!subGraph) continue;
+    subGraph.headers ??= {};
+    subGraph.headers[pending.headerName] = pending.value;
+  }
+
+  return Object.values(projectsMap).filter((p) => p.subGraphs.length > 0);
 }
