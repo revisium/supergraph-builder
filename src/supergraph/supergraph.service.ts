@@ -1,9 +1,14 @@
-import { Injectable, Logger, OnApplicationBootstrap } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  OnApplicationBootstrap,
+  OnModuleDestroy,
+} from '@nestjs/common';
 import { composeServices } from '@apollo/composition';
 import { ServiceDefinition } from '@apollo/federation-internals';
 import { parse } from 'graphql';
 import * as objectHash from 'object-hash';
-import { interval, exhaustMap, from } from 'rxjs';
+import { Subscription, interval, exhaustMap, from } from 'rxjs';
 import { FetchService } from 'src/supergraph/fetch.service';
 import { HiveCliService } from 'src/supergraph/hive.service';
 import { SchemaStorageService } from 'src/supergraph/schema-storage.service';
@@ -20,10 +25,13 @@ interface SuperGraphCacheEntry {
 }
 
 @Injectable()
-export class SupergraphService implements OnApplicationBootstrap {
+export class SupergraphService
+  implements OnApplicationBootstrap, OnModuleDestroy
+{
   private readonly logger = new Logger(SupergraphService.name);
   private readonly supergraphs = new Map<string, string>();
   private readonly caches = new Map<string, SuperGraphCacheEntry[]>();
+  private readonly pollingSubscriptions: Subscription[] = [];
 
   constructor(
     private readonly fetchService: FetchService,
@@ -76,7 +84,7 @@ export class SupergraphService implements OnApplicationBootstrap {
       this.logger.log(` - Subgraph "${name}" at ${url}${headerSuffix}`);
     });
 
-    interval(system.POLL_INTERVAL_S * 1000)
+    const subscription = interval(system.POLL_INTERVAL_S * 1000)
       .pipe(exhaustMap(() => from(this.refreshProject(project))))
       .subscribe({
         error: (error: Error) => {
@@ -86,6 +94,13 @@ export class SupergraphService implements OnApplicationBootstrap {
           process.exit(1);
         },
       });
+    this.pollingSubscriptions.push(subscription);
+  }
+
+  public onModuleDestroy(): void {
+    while (this.pollingSubscriptions.length) {
+      this.pollingSubscriptions.pop()?.unsubscribe();
+    }
   }
 
   private async refreshProject(project: ProjectConfig): Promise<void> {
