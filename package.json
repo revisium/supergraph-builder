@@ -22,10 +22,10 @@
     "test:e2e": "jest --config ./test/jest-e2e.json"
   },
   "dependencies": {
-    "@apollo/composition": "^2.11.2",
-    "@apollo/federation-internals": "^2.11.2",
+    "@apollo/composition": "^2.14.0",
+    "@apollo/federation-internals": "^2.14.0",
     "@apollo/query-graphs": "^2.11.2",
-    "@apollo/subgraph": "^2.11.2",
+    "@apollo/subgraph": "^2.14.0",
     "@nestjs/axios": "^4.0.0",
     "@nestjs/common": "^11.0.1",
     "@nestjs/config": "^4.0.2",
