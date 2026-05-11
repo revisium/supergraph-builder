@@ -295,7 +295,7 @@ SUBGRAPH_SHOP_USERS=https://users.example.com/graphql
 # Sent as:   x-api-key: secret-123
 SUBGRAPH_SHOP_USERS__HEADER_X_API_KEY=secret-123
 # Sent as:   authorization: Bearer eyJhbGc...
-SUBGRAPH_SHOP_USERS__HEADER_AUTHORIZATION=Bearer eyJhbGc...
+SUBGRAPH_SHOP_USERS__HEADER_AUTHORIZATION='Bearer eyJhbGc...'
 ```
 
 Notes:
