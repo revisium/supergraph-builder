@@ -20,13 +20,26 @@ type ReturnType = {
   };
 };
 
+export type FetchSchemaOptions = {
+  maxRetries?: number;
+  headers?: Record<string, string>;
+};
+
 @Injectable()
 export class FetchService {
   private readonly logger = new Logger(FetchService.name);
 
   constructor(private readonly httpService: HttpService) {}
 
-  async fetchSchema(url: string, maxRetries: number = 3): Promise<string> {
+  async fetchSchema(
+    url: string,
+    options: FetchSchemaOptions = {},
+  ): Promise<string> {
+    const { maxRetries = 3, headers: extraHeaders } = options;
+    const requestHeaders: Record<string, string> = {
+      ...(extraHeaders ?? {}),
+      'Content-Type': 'application/json',
+    };
     let lastError: Error = new Error('Unknown error');
 
     for (let attempt = 0; attempt <= maxRetries; attempt++) {
@@ -38,7 +51,7 @@ export class FetchService {
               JSON.stringify({
                 query: sdlQuery,
               }),
-              { headers: { 'Content-Type': 'application/json' } },
+              { headers: requestHeaders },
             )
             .pipe(
               catchError((error: AxiosError) =>

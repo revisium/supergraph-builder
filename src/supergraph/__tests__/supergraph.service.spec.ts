@@ -47,11 +47,11 @@ describe('SupergraphService', () => {
       // Verify fetch was called with MAX_RUNTIME_ERRORS as maxRetries
       expect(fetchService.fetchSchema).toHaveBeenCalledWith(
         'http://localhost:4001/graphql',
-        5,
+        { maxRetries: 5, headers: undefined },
       );
       expect(fetchService.fetchSchema).toHaveBeenCalledWith(
         'http://localhost:4002/graphql',
-        5,
+        { maxRetries: 5, headers: undefined },
       );
 
       // Verify schemas were saved
@@ -126,15 +126,15 @@ describe('SupergraphService', () => {
       // Verify schemas were fetched with correct maxRetries for each project
       expect(fetchService.fetchSchema).toHaveBeenCalledWith(
         'http://localhost:4001/graphql',
-        5, // mockProjectConfig.system.MAX_RUNTIME_ERRORS
+        { maxRetries: 5, headers: undefined }, // mockProjectConfig.system.MAX_RUNTIME_ERRORS
       );
       expect(fetchService.fetchSchema).toHaveBeenCalledWith(
         'http://localhost:4002/graphql',
-        5,
+        { maxRetries: 5, headers: undefined },
       );
       expect(fetchService.fetchSchema).toHaveBeenCalledWith(
         'http://localhost:4003/graphql',
-        3, // project2.system.MAX_RUNTIME_ERRORS
+        { maxRetries: 3, headers: undefined }, // project2.system.MAX_RUNTIME_ERRORS
       );
 
       intervalSpy.mockRestore();
@@ -231,7 +231,7 @@ describe('SupergraphService', () => {
       // Verify that fetchSchema was called with MAX_RUNTIME_ERRORS as retry limit
       expect(fetchService.fetchSchema).toHaveBeenCalledWith(
         'http://localhost:4001/graphql',
-        5, // MAX_RUNTIME_ERRORS from mockProjectConfig
+        { maxRetries: 5, headers: undefined }, // MAX_RUNTIME_ERRORS from mockProjectConfig
       );
 
       intervalSpy.mockRestore();
@@ -263,11 +263,11 @@ describe('SupergraphService', () => {
       // Verify that fetchSchema was called with MAX_RUNTIME_ERRORS as maxRetries
       expect(fetchService.fetchSchema).toHaveBeenCalledWith(
         'http://localhost:4001/graphql',
-        5, // MAX_RUNTIME_ERRORS used as maxRetries
+        { maxRetries: 5, headers: undefined }, // MAX_RUNTIME_ERRORS used as maxRetries
       );
       expect(fetchService.fetchSchema).toHaveBeenCalledWith(
         'http://localhost:4002/graphql',
-        5, // MAX_RUNTIME_ERRORS used as maxRetries
+        { maxRetries: 5, headers: undefined }, // MAX_RUNTIME_ERRORS used as maxRetries
       );
 
       intervalSpy.mockRestore();
@@ -374,6 +374,53 @@ describe('SupergraphService', () => {
       // Should not set supergraph when SDL is missing
       const result = service.getSuperGraph('test-project');
       expect(result).toBeUndefined();
+
+      intervalSpy.mockRestore();
+    });
+
+    it('passes per-subgraph headers to fetchSchema', async () => {
+      (getProjectsFromEnvironment as jest.Mock).mockReturnValue([
+        {
+          project: 'demo',
+          subGraphs: [
+            {
+              name: 'data',
+              url: 'http://localhost:4001/graphql',
+              headers: { 'x-api-key': 'data-key' },
+            },
+            {
+              name: 'cms',
+              url: 'http://localhost:4002/graphql',
+              headers: { authorization: 'Bearer cms' },
+            },
+          ],
+          system: {
+            POLL_INTERVAL_S: 60,
+            HIVE_TARGET: '',
+            HIVE_ACCESS_TOKEN: '',
+            HIVE_AUTHOR: '',
+            MAX_RUNTIME_ERRORS: 5,
+          },
+        },
+      ]);
+      fetchService.fetchSchema.mockResolvedValue(mockSdl);
+      storageService.saveSchema.mockResolvedValue(void 0 as any);
+
+      const intervalSpy = jest.spyOn(rxjs, 'interval');
+      intervalSpy.mockReturnValue({
+        pipe: jest.fn().mockReturnValue({ subscribe: jest.fn() }),
+      } as any);
+
+      await service.onApplicationBootstrap();
+
+      expect(fetchService.fetchSchema).toHaveBeenCalledWith(
+        'http://localhost:4001/graphql',
+        { maxRetries: 5, headers: { 'x-api-key': 'data-key' } },
+      );
+      expect(fetchService.fetchSchema).toHaveBeenCalledWith(
+        'http://localhost:4002/graphql',
+        { maxRetries: 5, headers: { authorization: 'Bearer cms' } },
+      );
 
       intervalSpy.mockRestore();
     });

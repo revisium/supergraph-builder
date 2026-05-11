@@ -66,9 +66,11 @@ export class SupergraphService implements OnApplicationBootstrap {
   private startPolling(project: ProjectConfig): void {
     const { project: id, subGraphs, system } = project;
     this.logger.log(`Project "${id}" polling every ${system.POLL_INTERVAL_S}s`);
-    subGraphs.forEach(({ name, url }) =>
-      this.logger.log(` - Subgraph "${name}" at ${url}`),
-    );
+    subGraphs.forEach(({ name, url, headers }) => {
+      const headerNames = headers ? Object.keys(headers).sort().join(', ') : '';
+      const headerSuffix = headerNames ? ` [headers: ${headerNames}]` : '';
+      this.logger.log(` - Subgraph "${name}" at ${url}${headerSuffix}`);
+    });
 
     interval(system.POLL_INTERVAL_S * 1000)
       .pipe(exhaustMap(() => from(this.refreshProject(project))))
@@ -106,8 +108,11 @@ export class SupergraphService implements OnApplicationBootstrap {
     maxRetries: number,
   ): Promise<SuperGraphCacheEntry[]> {
     return Promise.all(
-      subGraphs.map(async ({ name, url }) => {
-        const sdl = await this.fetchService.fetchSchema(url, maxRetries);
+      subGraphs.map(async ({ name, url, headers }) => {
+        const sdl = await this.fetchService.fetchSchema(url, {
+          maxRetries,
+          headers,
+        });
         const hash = objectHash(sdl);
         return {
           serviceDefinition: { name, url, typeDefs: parse(sdl) },
