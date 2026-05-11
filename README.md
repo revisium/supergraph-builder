@@ -38,6 +38,8 @@ graph TD
 
 A simple service that keeps your Apollo Federation supergraph updated by continuously fetching subgraph schemas and composing them. The generated supergraph schema is designed to be consumed by GraphQL gateways like Apollo Router or Hive Gateway. Optionally publishes schema changes to a registry (GraphQL Hive). Built with NestJS and TypeScript.
 
+Supported Apollo Federation subgraph `@link` versions: `v2.3` through `v2.12` (verified against `@apollo/composition` `2.14.0`).
+
 ### Features
 
 - **Continuous Schema Fetching** - Polls subgraph endpoints to keep schemas up-to-date
