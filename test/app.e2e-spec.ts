@@ -1,50 +1,18 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication } from '@nestjs/common';
-import * as http from 'node:http';
-import { AddressInfo } from 'node:net';
 import * as request from 'supertest';
+import type { Response } from 'supertest';
 import { App } from 'supertest/types';
 import { AppModule } from './../src/app.module';
-
-const SDL = `
-extend schema
-  @link(url: "https://specs.apollo.dev/federation/v2.3", import: ["@key"])
-
-type Query {
-  hello: String
-}
-`;
-
-function closeServer(server: http.Server): Promise<void> {
-  return new Promise<void>((done) => server.close(() => done()));
-}
-
-function listenOnRandomPort(server: http.Server): Promise<number> {
-  return new Promise((resolve) => {
-    server.listen(0, '127.0.0.1', () => {
-      const { port } = server.address() as AddressInfo;
-      resolve(port);
-    });
-  });
-}
-
-async function startSubgraphFixture(): Promise<{
-  port: number;
-  close: () => Promise<void>;
-}> {
-  const server = http.createServer((_req, res) => {
-    res.statusCode = 200;
-    res.setHeader('Content-Type', 'application/json');
-    res.end(JSON.stringify({ data: { _service: { sdl: SDL } } }));
-  });
-  const port = await listenOnRandomPort(server);
-  return { port, close: () => closeServer(server) };
-}
+import {
+  startSubgraphFixture,
+  SubgraphFixture,
+} from './helpers/subgraph-fixture';
 
 describe('AppModule (e2e)', () => {
   const ORIGINAL_ENV = process.env;
   let app: INestApplication<App>;
-  let fixture: Awaited<ReturnType<typeof startSubgraphFixture>>;
+  let fixture: SubgraphFixture;
 
   beforeEach(async () => {
     process.env = { ...ORIGINAL_ENV };
@@ -77,7 +45,7 @@ describe('AppModule (e2e)', () => {
     return request(app.getHttpServer())
       .get('/health/liveness')
       .expect(200)
-      .expect((res) => {
+      .expect((res: Response) => {
         const body = res.body as { status?: string };
         expect(body.status).toBe('ok');
       });
@@ -88,7 +56,7 @@ describe('AppModule (e2e)', () => {
       .get('/supergraph/demo')
       .expect(200)
       .expect('Content-Type', /text\/plain/)
-      .expect((res) => {
+      .expect((res: Response) => {
         expect(res.text).toContain('schema');
       });
   });
