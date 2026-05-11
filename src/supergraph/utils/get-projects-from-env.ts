@@ -54,7 +54,7 @@ function tryParseHeader(
 
   if (!subGraphKey || !rawHeaderName) return null;
 
-  const headerName = rawHeaderName.toLowerCase().replace(/_/g, '-');
+  const headerName = rawHeaderName.toLowerCase().replaceAll('_', '-');
   if (!VALID_HEADER_NAME.test(headerName)) return null;
 
   return {
@@ -129,7 +129,7 @@ export function getProjectsFromEnvironment(): ProjectConfig[] {
       (s) => s.name === pending.subGraphKey,
     );
     if (!subGraph) continue;
-    if (!subGraph.headers) subGraph.headers = {};
+    subGraph.headers ??= {};
     subGraph.headers[pending.headerName] = pending.value;
   }
 

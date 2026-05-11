@@ -21,47 +21,56 @@ type IncomingRequest = {
   body: string;
 };
 
-function startSubgraphFixture(fieldName: string = 'hello'): Promise<{
+function recordRequest(
+  req: http.IncomingMessage,
+  res: http.ServerResponse,
+  requests: IncomingRequest[],
+  sdl: string,
+): void {
+  const chunks: Buffer[] = [];
+  req.on('data', (chunk: Buffer) => chunks.push(chunk));
+  req.on('end', () => {
+    requests.push({
+      url: req.url,
+      headers: req.headers,
+      body: Buffer.concat(chunks).toString('utf-8'),
+    });
+    res.statusCode = 200;
+    res.setHeader('Content-Type', 'application/json');
+    res.end(JSON.stringify({ data: { _service: { sdl } } }));
+  });
+}
+
+function closeServer(server: http.Server): Promise<void> {
+  return new Promise<void>((done) => server.close(() => done()));
+}
+
+function listenOnRandomPort(server: http.Server): Promise<number> {
+  return new Promise((resolve) => {
+    server.listen(0, '127.0.0.1', () => {
+      const { port } = server.address() as AddressInfo;
+      resolve(port);
+    });
+  });
+}
+
+async function startSubgraphFixture(fieldName: string = 'hello'): Promise<{
   port: number;
   requests: IncomingRequest[];
   close: () => Promise<void>;
 }> {
   const requests: IncomingRequest[] = [];
   const sdl = makeSdl(fieldName);
-
-  const server = http.createServer((req, res) => {
-    const chunks: Buffer[] = [];
-    req.on('data', (chunk: Buffer) => chunks.push(chunk));
-    req.on('end', () => {
-      requests.push({
-        url: req.url,
-        headers: req.headers,
-        body: Buffer.concat(chunks).toString('utf-8'),
-      });
-      res.statusCode = 200;
-      res.setHeader('Content-Type', 'application/json');
-      res.end(JSON.stringify({ data: { _service: { sdl } } }));
-    });
-  });
-
-  return new Promise((resolve) => {
-    server.listen(0, '127.0.0.1', () => {
-      const { port } = server.address() as AddressInfo;
-      resolve({
-        port,
-        requests,
-        close: () =>
-          new Promise<void>((done) => {
-            server.close(() => done());
-          }),
-      });
-    });
-  });
+  const server = http.createServer((req, res) =>
+    recordRequest(req, res, requests, sdl),
+  );
+  const port = await listenOnRandomPort(server);
+  return { port, requests, close: () => closeServer(server) };
 }
 
 describe('Subgraph headers (e2e)', () => {
   const ORIGINAL_ENV = process.env;
-  let fixture: Awaited<ReturnType<typeof startSubgraphFixture>>;
+  let fixture: Awaited<ReturnType<typeof startSubgraphFixture>> | undefined;
   let app: INestApplication | undefined;
 
   beforeEach(async () => {
@@ -74,15 +83,22 @@ describe('Subgraph headers (e2e)', () => {
   });
 
   afterEach(async () => {
-    if (app) {
-      await app.close();
-      app = undefined;
+    try {
+      if (app) {
+        await app.close();
+        app = undefined;
+      }
+      if (fixture) {
+        await fixture.close();
+        fixture = undefined;
+      }
+    } finally {
+      process.env = ORIGINAL_ENV;
     }
-    await fixture.close();
-    process.env = ORIGINAL_ENV;
   });
 
   it('forwards configured headers to subgraph SDL introspection requests', async () => {
+    if (!fixture) throw new Error('fixture not initialized');
     process.env.SUBGRAPH_DEMO_DATA = `http://127.0.0.1:${fixture.port}/graphql`;
     process.env.SUBGRAPH_DEMO_DATA__HEADER_X_API_KEY = 'secret-from-env';
     process.env.SUBGRAPH_DEMO_DATA__HEADER_AUTHORIZATION = 'Bearer token-xyz';
@@ -104,6 +120,7 @@ describe('Subgraph headers (e2e)', () => {
   });
 
   it('omits auth headers when no header env var is configured', async () => {
+    if (!fixture) throw new Error('fixture not initialized');
     process.env.SUBGRAPH_DEMO_DATA = `http://127.0.0.1:${fixture.port}/graphql`;
     process.env.SUBGRAPH_DEMO_POLL_INTERVAL_S = '9999';
 
@@ -121,6 +138,7 @@ describe('Subgraph headers (e2e)', () => {
   });
 
   it('isolates headers between subgraphs in the same project', async () => {
+    if (!fixture) throw new Error('fixture not initialized');
     const second = await startSubgraphFixture('greetings');
     try {
       process.env.SUBGRAPH_DEMO_DATA = `http://127.0.0.1:${fixture.port}/graphql`;
@@ -135,6 +153,8 @@ describe('Subgraph headers (e2e)', () => {
       app = moduleFixture.createNestApplication();
       await app.init();
 
+      expect(fixture.requests.length).toBeGreaterThanOrEqual(1);
+      expect(second.requests.length).toBeGreaterThanOrEqual(1);
       expect(fixture.requests[0].headers['x-api-key']).toBe('data-key');
       expect(second.requests[0].headers['x-api-key']).toBe('cms-key');
     } finally {

@@ -15,7 +15,20 @@ type Query {
 }
 `;
 
-function startSubgraphFixture(): Promise<{
+function closeServer(server: http.Server): Promise<void> {
+  return new Promise<void>((done) => server.close(() => done()));
+}
+
+function listenOnRandomPort(server: http.Server): Promise<number> {
+  return new Promise((resolve) => {
+    server.listen(0, '127.0.0.1', () => {
+      const { port } = server.address() as AddressInfo;
+      resolve(port);
+    });
+  });
+}
+
+async function startSubgraphFixture(): Promise<{
   port: number;
   close: () => Promise<void>;
 }> {
@@ -24,19 +37,8 @@ function startSubgraphFixture(): Promise<{
     res.setHeader('Content-Type', 'application/json');
     res.end(JSON.stringify({ data: { _service: { sdl: SDL } } }));
   });
-
-  return new Promise((resolve) => {
-    server.listen(0, '127.0.0.1', () => {
-      const { port } = server.address() as AddressInfo;
-      resolve({
-        port,
-        close: () =>
-          new Promise<void>((done) => {
-            server.close(() => done());
-          }),
-      });
-    });
-  });
+  const port = await listenOnRandomPort(server);
+  return { port, close: () => closeServer(server) };
 }
 
 describe('AppModule (e2e)', () => {
@@ -63,9 +65,12 @@ describe('AppModule (e2e)', () => {
   });
 
   afterEach(async () => {
-    await app.close();
-    await fixture.close();
-    process.env = ORIGINAL_ENV;
+    try {
+      await app.close();
+      await fixture.close();
+    } finally {
+      process.env = ORIGINAL_ENV;
+    }
   });
 
   it('exposes liveness probe', () => {

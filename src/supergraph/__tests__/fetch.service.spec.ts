@@ -316,6 +316,34 @@ describe('FetchService', () => {
       expect(usedHeaders['Content-Type']).toBe('application/json');
     });
 
+    it('strips case-variant content-type overrides before applying canonical one', async () => {
+      const mockResponse: AxiosResponse = {
+        data: { data: { _service: { sdl: mockSdl } } },
+        status: 200,
+        statusText: 'OK',
+        headers: {},
+        config: {} as never,
+      };
+      httpService.post.mockReturnValue(of(mockResponse));
+
+      await service.fetchSchema(mockUrl, {
+        headers: {
+          'content-type': 'text/plain',
+          'x-api-key': 'preserved',
+        },
+      });
+
+      const callArgs = httpService.post.mock.calls[0];
+      const usedHeaders = (callArgs[2] as { headers: Record<string, string> })
+        .headers;
+      const lowerKeys = Object.keys(usedHeaders).map((k) => k.toLowerCase());
+      expect(lowerKeys.filter((k) => k === 'content-type')).toEqual([
+        'content-type',
+      ]);
+      expect(usedHeaders['Content-Type']).toBe('application/json');
+      expect(usedHeaders['x-api-key']).toBe('preserved');
+    });
+
     it('sends no extra headers when none are provided', async () => {
       const mockResponse: AxiosResponse = {
         data: { data: { _service: { sdl: mockSdl } } },

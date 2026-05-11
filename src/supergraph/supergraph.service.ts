@@ -67,7 +67,11 @@ export class SupergraphService implements OnApplicationBootstrap {
     const { project: id, subGraphs, system } = project;
     this.logger.log(`Project "${id}" polling every ${system.POLL_INTERVAL_S}s`);
     subGraphs.forEach(({ name, url, headers }) => {
-      const headerNames = headers ? Object.keys(headers).sort().join(', ') : '';
+      const headerNames = headers
+        ? Object.keys(headers)
+            .sort((a, b) => a.localeCompare(b))
+            .join(', ')
+        : '';
       const headerSuffix = headerNames ? ` [headers: ${headerNames}]` : '';
       this.logger.log(` - Subgraph "${name}" at ${url}${headerSuffix}`);
     });

@@ -36,8 +36,15 @@ export class FetchService {
     options: FetchSchemaOptions = {},
   ): Promise<string> {
     const { maxRetries = 3, headers: extraHeaders } = options;
+    const sanitizedExtraHeaders = extraHeaders
+      ? Object.fromEntries(
+          Object.entries(extraHeaders).filter(
+            ([name]) => name.toLowerCase() !== 'content-type',
+          ),
+        )
+      : undefined;
     const requestHeaders: Record<string, string> = {
-      ...(extraHeaders ?? {}),
+      ...sanitizedExtraHeaders,
       'Content-Type': 'application/json',
     };
     let lastError: Error = new Error('Unknown error');
