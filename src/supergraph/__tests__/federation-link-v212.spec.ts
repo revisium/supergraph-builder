@@ -2,7 +2,7 @@ import { composeServices } from '@apollo/composition';
 
 describe('Apollo Federation link compatibility', () => {
   it('composes mixed federation v2.12 and v2.3 subgraphs', () => {
-    const { parse } = jest.requireActual('graphql') as typeof import('graphql');
+    const { parse } = jest.requireActual<typeof import('graphql')>('graphql');
 
     const result = composeServices([
       {
