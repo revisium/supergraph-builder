@@ -1,346 +1,175 @@
 <div align="center">
 
-```mermaid
-graph TD
-    A["Users Service<br/>GraphQL Schema"]
-    B["Products Service<br/>GraphQL Schema"]
-    C["Orders Service<br/>GraphQL Schema"]
+# Supergraph Builder
 
-    A --> D["Supergraph Builder<br/>Schema Composition"]
-    B --> D
-    C --> D
-
-    D --> G["GraphQL Gateway<br/>Apollo Router / Hive Gateway"]
-
-    F["GraphQL Hive<br/>Schema Registry"]
-    D -.-> F
-
-    style A fill:#f8fafc,stroke:#64748b,stroke-width:2px,color:#334155
-    style B fill:#f8fafc,stroke:#64748b,stroke-width:2px,color:#334155
-    style C fill:#f8fafc,stroke:#64748b,stroke-width:2px,color:#334155
-    style D fill:#1e293b,stroke:#0f172a,stroke-width:3px,color:#f1f5f9
-    style G fill:#f8fafc,stroke:#64748b,stroke-width:2px,color:#334155
-    style F fill:#f8fafc,stroke:#64748b,stroke-width:2px,color:#334155
-```
+**Continuously composes Apollo Federation subgraph schemas into a supergraph SDL that any Federation-compatible gateway (Apollo Router, Hive Gateway) can serve.**
 
 [![GitHub Release](https://img.shields.io/github/v/release/revisium/supergraph-builder)](https://github.com/revisium/supergraph-builder/releases/latest)
 [![GitHub License](https://img.shields.io/badge/License-MIT-green.svg)](https://github.com/revisium/supergraph-builder/blob/master/LICENSE)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.7-blue.svg)](https://www.typescriptlang.org/)
 [![NestJS](https://img.shields.io/badge/NestJS-11.0-green.svg)](https://nestjs.com/)
 
-**Supergraph Builder - Apollo Federation supergraph composition service**
+```mermaid
+graph LR
+    A[users subgraph] --> B[Supergraph Builder]
+    P[products subgraph] --> B
+    O[orders subgraph] --> B
+    B -->|GET /supergraph/shop| R[Apollo Router / Hive Gateway]
+    B -.->|publish on change| H[GraphQL Hive]
+
+    style B fill:#1e293b,stroke:#0f172a,stroke-width:3px,color:#f1f5f9
+    style A fill:#f8fafc,stroke:#64748b,color:#334155
+    style P fill:#f8fafc,stroke:#64748b,color:#334155
+    style O fill:#f8fafc,stroke:#64748b,color:#334155
+    style R fill:#f8fafc,stroke:#64748b,color:#334155
+    style H fill:#f8fafc,stroke:#64748b,color:#334155
+```
 
 </div>
 
 ---
 
-## Overview
+## Table of contents
 
-A simple service that keeps your Apollo Federation supergraph updated by continuously fetching subgraph schemas and composing them. The generated supergraph schema is designed to be consumed by GraphQL gateways like Apollo Router or Hive Gateway. Optionally publishes schema changes to a registry (GraphQL Hive). Built with NestJS and TypeScript.
+- [What it does](#what-it-does)
+- [How it works](#how-it-works)
+- [Quick start (60 seconds)](#quick-start-60-seconds)
+- [Configuration](#configuration)
+  - [Subgraphs and projects](#subgraphs-and-projects)
+  - [Authentication headers](#authentication-headers)
+  - [Server](#server)
+  - [GraphQL Hive (optional)](#graphql-hive-optional)
+- [Use the supergraph from a gateway](#use-the-supergraph-from-a-gateway)
+- [Deployment](#deployment)
+- [Operations](#operations)
+- [API reference](#api-reference)
+- [Compatibility](#compatibility)
+- [Development](#development)
+- [License](#license)
+- [Issues](#issues)
 
-Supported Apollo Federation subgraph `@link` versions: `v2.3` through `v2.12` (verified against `@apollo/composition` `2.14.0`).
+---
 
-### Features
+## What it does
 
-- **Continuous Schema Fetching** - Polls subgraph endpoints to keep schemas up-to-date
-- **Automatic Composition** - Builds Apollo Federation supergraph from fetched schemas
-- **Gateway Integration** - Generates supergraph schemas for Apollo Router/Hive Gateway consumption
-- **Registry Publishing** - Optionally publishes schema changes to GraphQL Hive
-- **Retry Logic** - Handles temporary network failures with exponential backoff
-- **Docker Ready** - Containerized deployment
-- **Health Checks** - Built-in monitoring endpoints
+Apollo Federation gateways need a **single composed supergraph SDL** to route incoming GraphQL operations across many subgraph services. Maintaining that SDL by hand — or rebuilding it every time a subgraph deploys — is fragile.
 
-## Quick Start
+Supergraph Builder runs as a small NestJS service that:
 
-### Prerequisites
+1. Polls each configured subgraph's `_service { sdl }` introspection endpoint.
+2. Detects when any subgraph's schema has changed.
+3. Recomposes the supergraph SDL using `@apollo/composition`.
+4. Exposes the current supergraph at `GET /supergraph/<project>` for your gateway to pull.
+5. Optionally publishes the change to a schema registry ([GraphQL Hive](https://the-guild.dev/graphql/hive)).
 
-- Docker or Kubernetes cluster
-- Running GraphQL subgraph services
+The gateway becomes effectively stateless with respect to schema management: it pulls the supergraph from this service on a schedule and reconfigures itself.
 
-### How Projects Work
+## How it works
 
-The service organizes subgraphs into **projects** using environment variables:
+A **project** is a named group of subgraphs that get composed together. One Supergraph Builder instance can serve many projects.
 
-- Each project can have multiple subgraphs: `SUBGRAPH_<PROJECT>_<SERVICE>=<url>`
-- Each project gets its own supergraph endpoint: `/supergraph/<project>`
-- Example: `SUBGRAPH_SHOP_USERS` and `SUBGRAPH_SHOP_PRODUCTS` create a "shop" project accessible at `/supergraph/shop`
-
-### Docker
-
-1. **Run with Docker**:
-
-```bash
-docker run -d \
-  --name supergraph-builder \
-  -p 8080:8080 \
-  -e SUBGRAPH_MYPROJECT_USERS=http://users-service:4001/graphql \
-  -e SUBGRAPH_MYPROJECT_PRODUCTS=http://products-service:4002/graphql \
-  revisium/supergraph-builder:v0.2.2
-```
-
-2. **Get your supergraph**:
+You configure each project entirely through environment variables. The naming convention encodes both the project and the subgraph:
 
 ```bash
-curl http://localhost:8080/supergraph/myproject
+SUBGRAPH_<PROJECT>_<SERVICE>=<url>
 ```
 
-## Docker Compose
+For example, `SUBGRAPH_SHOP_USERS=http://users:4001/graphql` registers a subgraph named `users` in a project named `shop`. The composed supergraph for that project becomes available at `GET /supergraph/shop`.
+
+On startup, the service performs an initial fetch and composition for every project — any failure here is fatal (the process exits). Once running, each project polls its subgraphs every `POLL_INTERVAL_S` seconds (default 60), recomposes only when at least one schema hash has changed, and serves the latest result via the HTTP endpoint.
+
+## Quick start (60 seconds)
+
+The fastest way to see it work is Docker Compose. The example below uses [Apollo's reference subgraphs](https://github.com/apollographql/apollo-server/tree/main/packages/apollo-server-integration-testsuite/src/__fixtures__/starwars-federation) — replace with your own services.
 
 ```yaml
-version: '3.8'
+# docker-compose.yml
 services:
+  users:
+    image: ghcr.io/example/users-subgraph:latest # your subgraph here
+    ports: ['4001:4001']
+
+  products:
+    image: ghcr.io/example/products-subgraph:latest # your subgraph here
+    ports: ['4002:4002']
+
   supergraph-builder:
-    image: revisium/supergraph-builder:v0.2.2
-    ports:
-      - '8080:8080'
+    image: revisium/supergraph-builder:v0.3.0
+    ports: ['8080:8080']
     environment:
-      SUBGRAPH_MYPROJECT_USERS: http://users-service:4001/graphql
-      SUBGRAPH_MYPROJECT_PRODUCTS: http://products-service:4002/graphql
-      SUBGRAPH_MYPROJECT_POLL_INTERVAL_S: 30
+      SUBGRAPH_SHOP_USERS: http://users:4001/graphql
+      SUBGRAPH_SHOP_PRODUCTS: http://products:4002/graphql
+      SUBGRAPH_SHOP_POLL_INTERVAL_S: '30'
+    depends_on: [users, products]
     healthcheck:
-      test: ['CMD', 'curl', '-f', 'http://localhost:8080/health/readiness']
-      interval: 30s
-      timeout: 10s
+      test: ['CMD', 'wget', '-qO-', 'http://localhost:8080/health/readiness']
+      interval: 10s
       retries: 3
 ```
 
-## Kubernetes
-
-### Helm Chart
-
-Create a `values.yaml` file:
-
-```yaml
-# values.yaml
-image:
-  repository: revisium/supergraph-builder
-  tag: v0.2.2
-  pullPolicy: IfNotPresent
-
-service:
-  type: ClusterIP
-  port: 80
-  targetPort: 8080
-
-ingress:
-  enabled: false
-
-resources:
-  limits:
-    cpu: 500m
-    memory: 128Mi
-  requests:
-    cpu: 250m
-    memory: 64Mi
-
-env:
-  SUBGRAPH_MYPROJECT_USERS: 'http://users-service:4001/graphql'
-  SUBGRAPH_MYPROJECT_PRODUCTS: 'http://products-service:4002/graphql'
-  SUBGRAPH_MYPROJECT_POLL_INTERVAL_S: '30'
-
-healthCheck:
-  enabled: true
-  livenessPath: /health/liveness
-  readinessPath: /health/readiness
-```
-
-Create a basic Helm template (`templates/deployment.yaml`):
-
-```yaml
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: {{ include "supergraph-builder.fullname" . }}
-  labels:
-    app: {{ include "supergraph-builder.name" . }}
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: {{ include "supergraph-builder.name" . }}
-  template:
-    metadata:
-      labels:
-        app: {{ include "supergraph-builder.name" . }}
-    spec:
-      containers:
-      - name: supergraph-builder
-        image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
-        imagePullPolicy: {{ .Values.image.pullPolicy }}
-        ports:
-        - containerPort: {{ .Values.service.targetPort }}
-        env:
-        {{- range $key, $value := .Values.env }}
-        - name: {{ $key }}
-          value: {{ $value | quote }}
-        {{- end }}
-        {{- if .Values.healthCheck.enabled }}
-        livenessProbe:
-          httpGet:
-            path: {{ .Values.healthCheck.livenessPath }}
-            port: {{ .Values.service.targetPort }}
-          initialDelaySeconds: 30
-          periodSeconds: 10
-        readinessProbe:
-          httpGet:
-            path: {{ .Values.healthCheck.readinessPath }}
-            port: {{ .Values.service.targetPort }}
-          initialDelaySeconds: 5
-          periodSeconds: 5
-        {{- end }}
-        resources:
-          {{- toYaml .Values.resources | nindent 10 }}
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: {{ include "supergraph-builder.fullname" . }}
-  labels:
-    app: {{ include "supergraph-builder.name" . }}
-spec:
-  type: {{ .Values.service.type }}
-  ports:
-  - port: {{ .Values.service.port }}
-    targetPort: {{ .Values.service.targetPort }}
-  selector:
-    app: {{ include "supergraph-builder.name" . }}
-```
-
-Deploy with Helm:
-
 ```bash
-helm install supergraph-builder ./chart -f values.yaml
+docker compose up -d
+# Wait a couple of seconds for the initial fetch, then:
+curl http://localhost:8080/supergraph/shop
 ```
 
-### Simple Kubernetes YAML
-
-```yaml
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: supergraph-builder
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: supergraph-builder
-  template:
-    metadata:
-      labels:
-        app: supergraph-builder
-    spec:
-      containers:
-        - name: supergraph-builder
-          image: revisium/supergraph-builder:v0.2.2
-          ports:
-            - containerPort: 8080
-          env:
-            - name: SUBGRAPH_MYPROJECT_USERS
-              value: 'http://users-service:4001/graphql'
-            - name: SUBGRAPH_MYPROJECT_PRODUCTS
-              value: 'http://products-service:4002/graphql'
-          livenessProbe:
-            httpGet:
-              path: /health/liveness
-              port: 8080
-            initialDelaySeconds: 30
-          readinessProbe:
-            httpGet:
-              path: /health/readiness
-              port: 8080
-            initialDelaySeconds: 5
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: supergraph-builder-service
-spec:
-  selector:
-    app: supergraph-builder
-  ports:
-    - port: 80
-      targetPort: 8080
-```
-
-Apply with:
-
-```bash
-kubectl apply -f supergraph-builder.yaml
-```
+You should see a composed supergraph SDL printed to stdout. Point your gateway at that URL and you're done.
 
 ## Configuration
 
-### Environment Variables
+### Subgraphs and projects
 
-| Variable                                                | Default | Description                                                                              |
-| ------------------------------------------------------- | ------- | ---------------------------------------------------------------------------------------- |
-| `SUBGRAPH_<PROJECT>_<SERVICE>`                          | -       | Subgraph GraphQL endpoint URL (required)                                                 |
-| `SUBGRAPH_<PROJECT>_<SERVICE>__HEADER_<HEADER_NAME>`    | -       | Custom HTTP header sent with the SDL introspection request (`_` → `-`, see below)        |
-| `SUBGRAPH_<PROJECT>_POLL_INTERVAL_S`                    | `60`    | Schema polling interval in seconds                                                       |
-| `SUBGRAPH_<PROJECT>_MAX_RUNTIME_ERRORS`                 | `5`     | Maximum retry attempts                                                                   |
-| `PORT`                                                  | `8080`  | HTTP server port                                                                         |
+| Variable                                                | Default | Description                                                          |
+| ------------------------------------------------------- | ------- | -------------------------------------------------------------------- |
+| `SUBGRAPH_<PROJECT>_<SERVICE>`                          | —       | Subgraph GraphQL endpoint URL **(required)**                         |
+| `SUBGRAPH_<PROJECT>_<SERVICE>__HEADER_<HEADER_NAME>`    | —       | Custom HTTP header sent on the SDL introspection request (see below) |
+| `SUBGRAPH_<PROJECT>_POLL_INTERVAL_S`                    | `60`    | Polling interval in seconds                                          |
+| `SUBGRAPH_<PROJECT>_MAX_RUNTIME_ERRORS`                 | `5`     | Per-fetch retry budget before the polling cycle is marked failed     |
 
-### Subgraph Authentication Headers
+The project name (`<PROJECT>`) is whatever you choose. Service names (`<SERVICE>`) become the subgraph identifiers Apollo Federation uses during composition — pick names that match your subgraphs' `@key` and `@requires` directives.
 
-When a subgraph requires authentication for SDL introspection (e.g. an API key
-or bearer token), attach headers to that subgraph using the
-`SUBGRAPH_<PROJECT>_<SERVICE>__HEADER_<HEADER_NAME>` convention. The
-double-underscore (`__HEADER_`) separates the subgraph identifier from the
-header configuration. The header-name segment is mapped to a canonical HTTP
-header name by lowercasing it and replacing `_` with `-`.
+**Multiple projects** in one instance:
 
 ```bash
-# URL
+SUBGRAPH_SHOP_USERS=http://users:4001/graphql
+SUBGRAPH_SHOP_PRODUCTS=http://products:4002/graphql
+
+SUBGRAPH_ANALYTICS_EVENTS=http://events:4003/graphql
+SUBGRAPH_ANALYTICS_METRICS=http://metrics:4004/graphql
+```
+
+Each project gets its own endpoint: `/supergraph/shop`, `/supergraph/analytics`.
+
+### Authentication headers
+
+If a subgraph requires authentication for SDL introspection — an API key, a bearer token, a custom header — attach headers to that subgraph using the `__HEADER_` separator:
+
+```bash
+SUBGRAPH_<PROJECT>_<SERVICE>__HEADER_<HEADER_NAME>=<value>
+```
+
+The header name is lowercased and underscores become hyphens. `X_API_KEY` → `x-api-key`, `AUTHORIZATION` → `authorization`.
+
+```bash
+# URL of a subgraph behind an API gateway
 SUBGRAPH_SHOP_USERS=https://users.example.com/graphql
-# Sent as:   x-api-key: secret-123
+
+# Sent on the wire as: x-api-key: secret-123
 SUBGRAPH_SHOP_USERS__HEADER_X_API_KEY=secret-123
-# Sent as:   authorization: Bearer eyJhbGc...
+
+# Sent on the wire as: authorization: Bearer eyJhbGc...
 SUBGRAPH_SHOP_USERS__HEADER_AUTHORIZATION='Bearer eyJhbGc...'
 ```
 
-Notes:
+Behavior:
 
-- Multiple headers per subgraph are supported; each header is its own env var.
-- Headers are scoped to a single subgraph; isolation between subgraphs is
-  preserved (configuring `data` doesn't affect `cms`).
-- `Content-Type` is always set to `application/json` by the fetcher and cannot
-  be overridden (case-insensitive).
-- Empty values are ignored, which is convenient when wiring a Kubernetes
-  `secretKeyRef` that may be temporarily missing during a rollout.
-- Header values are not logged. Startup logs only show the header **names** for
-  each configured subgraph.
+- Multiple headers per subgraph are supported (one env var per header).
+- Headers are scoped to a single subgraph — configuring `users` doesn't affect `products`.
+- `Content-Type: application/json` is always set by the fetcher and cannot be overridden (case-insensitive).
+- Empty values are skipped — convenient for Kubernetes `secretKeyRef`s that may be temporarily missing during a rollout.
+- Header **values** are never logged. Startup logs print only the header **names** configured for each subgraph.
 
-### GraphQL Hive (Optional)
-
-| Variable                               | Description                         |
-| -------------------------------------- | ----------------------------------- |
-| `SUBGRAPH_<PROJECT>_HIVE_TARGET`       | Hive project target ID              |
-| `SUBGRAPH_<PROJECT>_HIVE_ACCESS_TOKEN` | Hive API access token               |
-| `SUBGRAPH_<PROJECT>_HIVE_AUTHOR`       | Author name for schema publications |
-
-### Examples
-
-**Single Project**:
-
-```bash
-export SUBGRAPH_SHOP_USERS=http://localhost:4001/graphql
-export SUBGRAPH_SHOP_PRODUCTS=http://localhost:4002/graphql
-export SUBGRAPH_SHOP_POLL_INTERVAL_S=30
-```
-
-**Multiple Projects**:
-
-```bash
-# Project 1
-export SUBGRAPH_SHOP_USERS=http://localhost:4001/graphql
-export SUBGRAPH_SHOP_PRODUCTS=http://localhost:4002/graphql
-
-# Project 2
-export SUBGRAPH_ANALYTICS_EVENTS=http://localhost:4003/graphql
-export SUBGRAPH_ANALYTICS_METRICS=http://localhost:4004/graphql
-```
-
-**Authenticated subgraph** (Kubernetes, pulling the key from a `Secret`):
+In Kubernetes, wire each header to a `Secret` key:
 
 ```yaml
 env:
@@ -353,78 +182,194 @@ env:
         key: USERS_API_KEY
 ```
 
-## API
+### Server
 
-### Health Check
+| Variable | Default | Description      |
+| -------- | ------- | ---------------- |
+| `PORT`   | `8080`  | HTTP server port |
 
-#### Readiness Probe
+### GraphQL Hive (optional)
 
-```http
-GET /health/readiness
-```
+When configured, every detected schema change is published to a [GraphQL Hive](https://the-guild.dev/graphql/hive) target.
 
-Returns 200 OK when service is ready to accept traffic.
+| Variable                               | Description                         |
+| -------------------------------------- | ----------------------------------- |
+| `SUBGRAPH_<PROJECT>_HIVE_TARGET`       | Hive project target ID              |
+| `SUBGRAPH_<PROJECT>_HIVE_ACCESS_TOKEN` | Hive API access token               |
+| `SUBGRAPH_<PROJECT>_HIVE_AUTHOR`       | Author name for schema publications |
 
-#### Liveness Probe
+All three must be set for publishing to be enabled.
 
-```http
-GET /health/liveness
-```
+## Use the supergraph from a gateway
 
-Returns 200 OK when service is alive and functioning.
-
-### Get Supergraph
-
-```http
-GET /supergraph/:projectId
-```
-
-Returns the composed supergraph SDL for the project.
-
-**Example**:
+The endpoint serves plain SDL with `Content-Type: text/plain`:
 
 ```bash
 curl http://localhost:8080/supergraph/shop
 ```
 
-## Retry Strategy
+**Apollo Router** reads its supergraph from a file path and supports hot reload. The recommended deployment pattern is a small sidecar that polls this service and writes the result to a shared volume:
 
-The service handles network failures with exponential backoff:
-
-| Attempt | Delay Range      |
-| ------- | ---------------- |
-| 1       | 750ms - 1250ms   |
-| 2       | 1500ms - 2500ms  |
-| 3       | 8080ms - 5000ms  |
-| 4+      | Up to 30 seconds |
-
-Logs show retry attempts and successful recoveries:
-
+```yaml
+# Pseudocode for the sidecar loop
+while true; do
+  curl -fsSL http://supergraph-builder/supergraph/shop -o /shared/supergraph.graphql
+  sleep 30
+done
 ```
-[WARN] Retry attempt 2/6 for http://users:4001/graphql in 1847ms
-[INFO] Successfully fetched schema from http://users:4001/graphql after 3 attempts
+
+```bash
+APOLLO_ROUTER_SUPERGRAPH_PATH=/shared/supergraph.graphql \
+./router --hot-reload --config router.yaml
 ```
+
+This decouples the gateway from supergraph-builder's availability: a failed fetch leaves the last good SDL in place. **Hive Gateway** has a similar pattern with `--supergraph` pointed at the same file.
+
+## Deployment
+
+### Docker
+
+```bash
+docker run -d --name supergraph-builder -p 8080:8080 \
+  -e SUBGRAPH_SHOP_USERS=http://users:4001/graphql \
+  -e SUBGRAPH_SHOP_PRODUCTS=http://products:4002/graphql \
+  revisium/supergraph-builder:v0.3.0
+```
+
+### Docker Compose
+
+See the [Quick start](#quick-start-60-seconds) section above.
+
+### Kubernetes
+
+A minimal manifest. Most production deployments wrap this in a Helm chart with `secretKeyRef` for any auth headers (see [Authentication headers](#authentication-headers)).
+
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: supergraph-builder
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: supergraph-builder }
+  template:
+    metadata:
+      labels: { app: supergraph-builder }
+    spec:
+      containers:
+        - name: supergraph-builder
+          image: revisium/supergraph-builder:v0.3.0
+          ports: [{ containerPort: 8080 }]
+          env:
+            - name: SUBGRAPH_SHOP_USERS
+              value: 'http://users:4001/graphql'
+            - name: SUBGRAPH_SHOP_PRODUCTS
+              value: 'http://products:4002/graphql'
+          readinessProbe:
+            httpGet: { path: /health/readiness, port: 8080 }
+            periodSeconds: 5
+          livenessProbe:
+            httpGet: { path: /health/liveness, port: 8080 }
+            periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: supergraph-builder
+spec:
+  selector: { app: supergraph-builder }
+  ports: [{ port: 80, targetPort: 8080 }]
+```
+
+## Operations
+
+### Health endpoints
+
+- `GET /health/readiness` — 200 once the service has successfully fetched and composed every configured project at least once. Use this for traffic gating.
+- `GET /health/liveness` — 200 while the process is alive. Use this for restart decisions.
+
+### Polling and retries
+
+Each subgraph fetch retries on transient HTTP failures with exponential backoff and ±25 % jitter, capped at 30 seconds:
+
+| Retry attempt | Backoff window  |
+| ------------- | --------------- |
+| 1             | 750 – 1250 ms   |
+| 2             | 1500 – 2500 ms  |
+| 3             | 3000 – 5000 ms  |
+| 4             | 6000 – 10000 ms |
+| 5+            | up to 30000 ms  |
+
+The total retry budget per fetch is `SUBGRAPH_<PROJECT>_MAX_RUNTIME_ERRORS` (default 5).
+
+### What happens when a subgraph is unreachable
+
+- **At startup**: the initial bootstrap fetch is fatal. After exhausting retries the process exits with code 1, allowing the orchestrator (Docker / Kubernetes / systemd) to restart it. This avoids serving a partial supergraph composed from stale data.
+- **During polling**: a failed fetch cycle is also fatal — the process exits. The rationale is the same: rather than freezing on a known-stale supergraph, the service surfaces the failure to its supervisor. The previously-composed SDL remains available until the process is restarted by the orchestrator.
+
+### Logs
+
+Startup prints every configured project, its poll interval, and each subgraph URL (with header **names** if any are configured, never values). During operation:
+
+```text
+[INFO] Project "shop" polling every 30s
+[INFO]  - Subgraph "users" at https://users.example.com/graphql [headers: x-api-key]
+[INFO]  - Subgraph "products" at https://products.example.com/graphql
+[WARN] Retry attempt 2/6 for https://users.example.com/graphql in 1847ms
+[INFO] Successfully fetched schema from https://users.example.com/graphql after 3 attempts
+[INFO] [shop] "users" changed (hash=4f9a…)
+[INFO] [shop] Composing supergraph from 2 services
+[INFO] [shop] Supergraph updated successfully
+```
+
+## API reference
+
+| Method | Path                       | Response                                        |
+| ------ | -------------------------- | ----------------------------------------------- |
+| GET    | `/supergraph/:projectId`   | `text/plain` — composed supergraph SDL, or 404  |
+| GET    | `/health/readiness`        | `application/json` — `{ "status": "ok", ... }`  |
+| GET    | `/health/liveness`         | `application/json` — `{ "status": "ok", ... }`  |
+
+## Compatibility
+
+- **Apollo Federation subgraph `@link` versions**: `v2.3` through `v2.12` (verified against `@apollo/composition` 2.14.0).
+- **Node.js**: 22.x.
+- Any Federation-compatible gateway that can consume a remote supergraph file: Apollo Router, Hive Gateway, Apollo Gateway.
 
 ## Development
 
 ```bash
-# Install dependencies
-npm install
+npm install                # install dependencies
+npm run start:dev          # start with watch mode
+npm test                   # unit tests
+npm run test:e2e           # end-to-end tests
+npm run lint:ci            # lint check
+npm run tsc                # type check
+npm run build              # production build → ./dist
+```
 
-# Run tests
-npm test
+### Project layout
 
-# Start development server
-npm run start:dev
-
-# Build for production
-npm run build
+```text
+src/
+  main.ts                  # NestJS bootstrap
+  app.module.ts            # root module
+  health/                  # /health/{readiness,liveness}
+  supergraph/
+    supergraph.controller.ts   # /supergraph/:projectId
+    supergraph.service.ts      # composition orchestration + polling
+    fetch.service.ts           # subgraph SDL introspection (with retries/headers)
+    schema-storage.service.ts  # on-disk per-subgraph schema cache
+    hive.service.ts            # optional GraphQL Hive publishing
+    utils/get-projects-from-env.ts  # env → project config parser
+test/                      # e2e tests + shared fixture helpers
 ```
 
 ## License
 
-MIT License - see [LICENSE](LICENSE) file for details.
+[MIT](LICENSE) © Anton Kashirov
 
-## Support
+## Issues
 
-- [Issues](https://github.com/revisium/supergraph-builder/issues)
+Bug reports and feature requests welcome on [GitHub Issues](https://github.com/revisium/supergraph-builder/issues).
