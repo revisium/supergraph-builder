@@ -12,7 +12,7 @@ permissions:
 
 jobs:
   build-and-push-image:
-    uses: revisium/revisium-actions/.github/workflows/docker-build.yml@174e7053ee6cc463f376441c77e19dcb85919d41 # v0.3.6
+    uses: revisium/revisium-actions/.github/workflows/docker-build.yml@184b609dcbc1e23f14021141f29226d4e6a0f1ac # v0.3.6
     with:
       image_name: ${{ github.event.repository.name }}
       context: .
