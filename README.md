@@ -69,7 +69,7 @@ A **project** is a named group of subgraphs that get composed together. One Supe
 
 You configure each project entirely through environment variables. The naming convention encodes both the project and the subgraph:
 
-```
+```bash
 SUBGRAPH_<PROJECT>_<SERVICE>=<url>
 ```
 
@@ -143,7 +143,7 @@ Each project gets its own endpoint: `/supergraph/shop`, `/supergraph/analytics`.
 
 If a subgraph requires authentication for SDL introspection — an API key, a bearer token, a custom header — attach headers to that subgraph using the `__HEADER_` separator:
 
-```
+```bash
 SUBGRAPH_<PROJECT>_<SERVICE>__HEADER_<HEADER_NAME>=<value>
 ```
 
@@ -311,7 +311,7 @@ The total retry budget per fetch is `SUBGRAPH_<PROJECT>_MAX_RUNTIME_ERRORS` (def
 
 Startup prints every configured project, its poll interval, and each subgraph URL (with header **names** if any are configured, never values). During operation:
 
-```
+```text
 [INFO] Project "shop" polling every 30s
 [INFO]  - Subgraph "users" at https://users.example.com/graphql [headers: x-api-key]
 [INFO]  - Subgraph "products" at https://products.example.com/graphql
@@ -350,7 +350,7 @@ npm run build              # production build → ./dist
 
 ### Project layout
 
-```
+```text
 src/
   main.ts                  # NestJS bootstrap
   app.module.ts            # root module
