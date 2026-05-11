@@ -73,7 +73,8 @@ describe('AppModule (e2e)', () => {
       .get('/health/liveness')
       .expect(200)
       .expect((res) => {
-        expect(res.body.status).toBe('ok');
+        const body = res.body as { status?: string };
+        expect(body.status).toBe('ok');
       });
   });
 
@@ -88,8 +89,6 @@ describe('AppModule (e2e)', () => {
   });
 
   it('returns 404 for unknown projects', () => {
-    return request(app.getHttpServer())
-      .get('/supergraph/unknown')
-      .expect(404);
+    return request(app.getHttpServer()).get('/supergraph/unknown').expect(404);
   });
 });
